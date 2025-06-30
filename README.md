@@ -1,6 +1,6 @@
 # SmoothTensorDecompositionABPM
 
-This is a repository for the implementation of the paper "Smooth Tensor Decomposition with Application to Ambulatory Blood Pressure Monitoring Data". The implementation dependends on the [`SmoothHOOI` R package](https://github.com/IrinaStatsLab/SmoothHOOI).
+This is a repository for the implementation of the paper "Smooth Tensor Decomposition with Application to Ambulatory Blood Pressure Monitoring Data". The implementation dependends on the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
 ## HYPNOS Application
 
@@ -17,5 +17,5 @@ This folder includes code for reproducing the results in Section 3 of the paper.
 
 ## Synthetic Example
 
-This folder presents a synthetic example that shows the workflow of this study and the usage of the [`SmoothHOOI` R package](https://github.com/IrinaStatsLab/SmoothHOOI).
+This folder presents a synthetic example that shows the workflow of this study and the usage of the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
