@@ -1,0 +1,267 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r}
+load("synthetic_raw.Rda")
+library(SmoothHOOI)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+This is an illustration of how to use our functions on synthetic data 
+
+```{r}
+set.seed(32123)
+```
+
+## Generate synthetic data
+```{r}
+synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern="random", percent=0.2)
+
+synthetic_dat <- synthetic$sim_Mmiss
+
+```
+
+## Make the second order difference matrix 
+```{r}
+D2 <- SecDiffMat(24)
+```
+
+## Coarse-to-fine grid search (Example)
+```{r}
+original <- (synthetic_dat@data[ , 1, 180])*12+70
+lambda_seq <- c(0.1, 1, 10, 50, 100, 500)
+est_df <- matrix(NA, nrow=24, ncol=length(lambda_seq))
+for (i in 1:length(lambda_seq)){
+  lambda <- lambda_seq[i]
+  res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
+                 lambda = lambda, max_iter = 500, tol = 1e-5, L0 = NULL)
+  est_df[,i] <- (res$est[,1,180])*12 +70
+}
+org_df <- data.frame(cbind(c(1:24), original))
+est_df <- data.frame(cbind(c(1:24), est_df)) 
+colnames(org_df) <- c("hour", "original")
+colnames(est_df) <- c("hour", paste0("lambda",lambda_seq))
+est_long <- pivot_longer(est_df, cols = starts_with("lambda"),
+                         names_to = "lambda", values_to = "y")
+est_long$lambda <- factor(est_long$lambda, levels=c("lambda0.1","lambda1","lambda10","lambda50","lambda100", "lambda500"))
+```
+
+```{r, warning=FALSE}
+custom_colors <- c("grey","#9ECAE1","#6BAED6", "#4292C6", "#2171B5","darkblue")
+names(custom_colors) <- levels(factor(est_long$lambda))  
+
+ggplot() +
+  geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
+  geom_line(data = est_long, aes(x = hour, y =y, color = lambda)) +  # Estimated curves
+  labs(title = "",
+       x = "HOUR", y = "DBP") +
+  scale_color_manual(values = custom_colors,
+                    name = expression(lambda)) + 
+  theme(legend.position = c(1, 1),        
+    legend.justification = c(1, 1), 
+    panel.grid = element_blank(),             
+    panel.background = element_blank(),       
+    plot.background = element_blank(),        
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),  # add border rectangle
+    axis.line = element_blank(),
+    legend.background = element_blank(),  # removes the outer background & border
+    legend.key = element_blank(),
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    legend.text = element_text(size = 16,hjust=0),
+    legend.title = element_text(size = 16)
+    )
+
+```
+
+```{r}
+original <- (synthetic_dat@data[ , 1, 1])*12 + 70
+r1_seq <- c(3,6,9,12)
+est_df <- matrix(NA, nrow=24, ncol=length(r1_seq))
+
+for (i in 1:length(r1_seq)){
+  r1 <- r1_seq[i]
+  res <-  mglram(tnsr = synthetic_dat@data, ranks = c(r1, 3), init=0, D = D2,
+                 lambda = 10, max_iter = 500, tol = 1e-5, L0 = NULL)
+  est_df[,i] <- (res$est[,1,1])*12 + 70
+}
+
+colnames(est_df) <- paste0("r", r1_seq)
+est_df <- cbind(hour = 1:24, est_df)
+est_df <- data.frame(est_df)
+org_df <- data.frame(hour = 1:24, original = original)
+est_long <- pivot_longer(est_df, cols = starts_with("r"),
+                         names_to = "r", values_to = "y")
+est_long$r <- factor(est_long$r, levels = paste0("r", r1_seq))
+```
+
+```{r, warning=FALSE}
+custom_colors <- c("#FEC44F", "#FE9929","#EC7014","#CC4C02")
+names(custom_colors) <- levels(factor(est_long$r))  
+
+ggplot() +
+  geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
+  geom_line(data = est_long, aes(x = hour, y =y, color = r)) +  # Estimated curves
+  labs(title = "",
+       x = "HOUR", y = "DBP") +
+  scale_color_manual(values = custom_colors,
+                     labels = c("r3" = 3, "r6" = 6,
+                                "r9" = 9, "r12" = 12),
+                    name =  expression(r[1])) + 
+  theme(legend.position = c(1, 1),        
+    legend.justification = c(1, 1), 
+    panel.grid = element_blank(),             
+    panel.background = element_blank(),       
+    plot.background = element_blank(),        
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),  # add border rectangle
+    axis.line = element_blank(),
+    legend.background = element_blank(),  # removes the outer background & border
+    legend.key = element_blank(),
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    legend.text = element_text(size = 16,hjust=0),
+    legend.title = element_text(size = 16)
+    )
+
+```
+
+# Find optimal hyperparameter using k-fold cross-validation
+```{r}
+
+start_time <- Sys.time()
+
+kcv_res <- kcv(tnsr=synthetic_dat@data, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,20,by=1),
+               k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
+
+end_time <- Sys.time()
+
+exec_time <- end_time - start_time
+print(exec_time)
+
+kcv_res
+```
+
+```{r}
+res <- mglram(tnsr = synthetic_dat@data, ranks = c(3, 2), init=0, D = D2,
+       lambda = 9, max_iter = 500, tol = 1e-5, L0 = NULL)
+
+res$conv
+
+tilde <- MakeIdent(L=res$L, G=res$G, R=res$R)
+
+L_tilde <- tilde$L_tilde
+R_tilde <- tilde$R_tilde
+G_tilde <- tilde$G_tilde
+
+L_tilde
+R_tilde 
+G_tilde[ , ,1:10]
+
+```
+
+```{r}
+dataL = data.frame(loading = c(L_tilde[, 1], L_tilde[, 2], L_tilde[, 3]),
+                   component = c(rep("1st", 24), rep("2nd", 24), rep("3rd", 24)),
+                   hour = rep(12:35, 3))
+
+pL = dataL %>%
+  ggplot(aes(x = hour, y = loading)) + geom_line(alpha = 0.5) + geom_point() + geom_hline(yintercept = 0, color = "red") +
+  scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
+  xlab("Hour of the day") + 
+  facet_grid(~ component) + 
+  ylab("Coefficient") +
+  theme(text = element_text(size = 15)) +
+  scale_y_continuous(limits = c(-0.4, 0.4))
+
+pL
+```
+
+```{r}
+R_tilde[, 1] # first component of R tilde
+R_tilde[, 2] # second component of R tilde
+
+## 37/100 DBP + 33/50 SBP + 29/100 HR (Seem to be joint effect of the three)
+R_tilde[1, 1]/sum(R_tilde[, 1]) # DBP: 37/100 
+R_tilde[2, 1]/sum(R_tilde[, 1]) # SBP: 33/100 
+R_tilde[3, 1]/sum(R_tilde[, 1]) # HR: 30/100 = 3/10
+
+## -13/100 DBP - 33/100 SBP + 27/50 HR (Contrast between blood pressure and heart rate?)
+R_tilde[1, 2]/sum(abs(R_tilde[, 2])) # DBP: -13/100
+R_tilde[2, 2]/sum(abs(R_tilde[, 2])) # SBP: -33/100 
+R_tilde[3, 2]/sum(abs(R_tilde[, 2])) # HR: 54/100 = 27/50
+```
+
+```{r}
+for (i in 1:25){
+  plot(synthetic_dat@data[ , 1, i], main=paste(i,"th patient"), xlab="Hour", ylab="DBP", ylim=c(-2,2)) # original data
+  lines(res$est[ , 1, i], col="blue") # estimated curve by our algorithm
+}
+```
+
+```{r}
+# Plot Estimated Curves for SBP
+for (i in 50:75){
+  plot(synthetic_dat@data[ , 2, i], main=paste(i,"th patient"), xlab="Hour", ylab="SBP", ylim=c(-2.5,2))
+  lines(res$est[ , 2, i], col="blue")
+}
+```
+
+```{r}
+# Plot Estimated Curves for HR
+for (i in 150:175){
+  plot(synthetic_dat@data[ , 3, i], main=paste(i,"th patient"), xlab="Hour", ylab="HR")
+  lines(res$est[ , 3, i], col="blue")
+}
+```
+
+## Comparison with FPCA (Example)
+```{r, warning=FALSE}
+library(refund)
+h1 <- rTensor::unfold(synthetic_dat[,1,], row_idx = 2, col_idx = 1)@data
+outfpca1 <- refund::fpca.sc(Y = as.matrix(h1), npc = 3, center=FALSE)
+
+res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
+                 lambda = 12, max_iter = 500, tol = 1e-5, L0 = NULL)
+
+for (i in c(90)){
+df <- data.frame(cbind(c(1:24), (res$est[,1,i])*12+70, (outfpca1$Yhat[i,])*12+70))
+colnames(df) <- c("hour", "my", "fpca")
+original <- (synthetic_dat@data[ , 1, i])*12+70
+org_df <- data.frame(cbind(c(1:24), original))
+colnames(org_df) <- c("hour", "original")
+
+df_long <- pivot_longer(df, cols=c("my", "fpca"), names_to = "method")
+
+custom_colors <- c("blue","red")
+names(custom_colors) <- c("my", "fpca")
+
+p <- ggplot() +
+  geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
+  geom_line(data = df_long, aes(x = hour, y =value, color = method)) +
+  labs(title = "",
+       x = "HOUR", y = "DBP") +
+  scale_color_manual(values = custom_colors,
+                     labels = c("my" = "Smooth Tensor Decomposition", "fPCA" = "Functional Principal Component Analysis"),
+                    name =  "Method") +
+  theme(legend.position = c(1, 1),        
+    legend.justification = c(1, 1), 
+    panel.grid = element_blank(),             
+    panel.background = element_blank(),       
+    plot.background = element_blank(),        
+    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),  # add border rectangle
+    axis.line = element_blank(),
+    legend.background = element_blank(),  # removes the outer background & border
+    legend.key = element_blank(),
+    axis.text = element_text(size = 16),
+    axis.title = element_text(size = 16),
+    legend.text = element_text(size = 14,hjust=0),
+    legend.title = element_text(size = 14)
+    )
+print(p)
+}
+```
+
