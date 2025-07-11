@@ -19,10 +19,13 @@ set.seed(32123)
 
 ## Generate synthetic data
 ```{r}
-synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern="random", percent=0.2)
+#synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern="random", percent=0.2)
+
+synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern = "structured")
 
 synthetic_dat <- synthetic$sim_Mmiss
 
+#save(synthetic_dat, file = "synthetic_data.Rda")
 ```
 
 ## Make the second order difference matrix 
@@ -38,7 +41,7 @@ est_df <- matrix(NA, nrow=24, ncol=length(lambda_seq))
 for (i in 1:length(lambda_seq)){
   lambda <- lambda_seq[i]
   res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
-                 lambda = lambda, max_iter = 500, tol = 1e-5, L0 = NULL)
+                 lambda = lambda, max_iter = 500, tol = 1e-5, L0_ = NULL)
   est_df[,i] <- (res$est[,1,180])*12 +70
 }
 org_df <- data.frame(cbind(c(1:24), original))
@@ -86,7 +89,7 @@ est_df <- matrix(NA, nrow=24, ncol=length(r1_seq))
 for (i in 1:length(r1_seq)){
   r1 <- r1_seq[i]
   res <-  mglram(tnsr = synthetic_dat@data, ranks = c(r1, 3), init=0, D = D2,
-                 lambda = 10, max_iter = 500, tol = 1e-5, L0 = NULL)
+                 lambda = 10, max_iter = 500, tol = 1e-5, L0_ = NULL)
   est_df[,i] <- (res$est[,1,1])*12 + 70
 }
 
@@ -131,11 +134,10 @@ ggplot() +
 
 # Find optimal hyperparameter using k-fold cross-validation
 ```{r}
-
 start_time <- Sys.time()
 
-kcv_res <- kcv(tnsr=synthetic_dat@data, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,20,by=1),
-               k=5, L0=NULL, D=D2, tol=0.01, max_iter=500, init=0)
+kcv_res <- kcv(tnsr=synthetic_dat@data, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,30,by=1),
+               k=5, L0_ =NULL, D=D2, tol=0.01, max_iter=500, init=0)
 
 end_time <- Sys.time()
 
@@ -146,10 +148,18 @@ kcv_res
 ```
 
 ```{r}
-res <- mglram(tnsr = synthetic_dat@data, ranks = c(3, 2), init=0, D = D2,
-       lambda = 9, max_iter = 500, tol = 1e-5, L0 = NULL)
+start_time <- Sys.time()
+
+res <- mglram(tnsr = synthetic_dat@data, ranks = c(4, 2), init=0, D = D2,
+       lambda = 22, max_iter = 500, tol = 1e-5, L0 = NULL)
 
 res$conv
+
+end_time <- Sys.time()
+
+exec_time <- end_time - start_time
+print(exec_time)
+
 
 tilde <- MakeIdent(L=res$L, G=res$G, R=res$R)
 
@@ -227,7 +237,7 @@ outfpca1 <- refund::fpca.sc(Y = as.matrix(h1), npc = 3, center=FALSE)
 res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
                  lambda = 12, max_iter = 500, tol = 1e-5, L0 = NULL)
 
-for (i in c(90)){
+for (i in c(111)){
 df <- data.frame(cbind(c(1:24), (res$est[,1,i])*12+70, (outfpca1$Yhat[i,])*12+70))
 colnames(df) <- c("hour", "my", "fpca")
 original <- (synthetic_dat@data[ , 1, i])*12+70
