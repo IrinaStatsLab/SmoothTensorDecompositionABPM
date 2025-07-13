@@ -32,6 +32,7 @@ In `Case 1-Fixed ranks` and `Case 2-Flexible ranks` folders, the following abbre
 This folder presents a synthetic example that shows the workflow of this study and the usage of the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
 - `synthetic_raw.Rda`: data used to generate synthetic data
+- `synthetic_data.Rda`: synthetic data
 - `Synthetic Example.Rmd`: code for this synthetic example
 - `Synthetic-Example.pdf`: output for this synthetic example
 
