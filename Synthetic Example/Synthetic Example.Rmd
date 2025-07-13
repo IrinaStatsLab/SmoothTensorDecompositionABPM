@@ -17,7 +17,7 @@ This is an illustration of how to use our functions on synthetic data
 set.seed(32123)
 ```
 
-## Generate synthetic data
+# Generate synthetic data
 ```{r}
 #synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern="random", percent=0.2)
 
@@ -28,12 +28,12 @@ synthetic_dat <- synthetic$sim_Mmiss
 #save(synthetic_dat, file = "synthetic_data.Rda")
 ```
 
-## Make the second order difference matrix 
+# Make the second order difference matrix 
 ```{r}
 D2 <- SecDiffMat(24)
 ```
 
-## Coarse-to-fine grid search (Example)
+# Coarse-to-fine grid search (Example)
 ```{r}
 original <- (synthetic_dat@data[ , 1, 180])*12+70
 lambda_seq <- c(0.1, 1, 10, 50, 100, 500)
@@ -147,11 +147,120 @@ print(exec_time)
 kcv_res
 ```
 
+# Check explained variability
+
+```{r}
+opt_res <- mglram(tnsr = synthetic_dat@data, ranks = c(4, 2), init=0, D = D2,
+       lambda = 22, max_iter = 500, tol = 1e-5, L0 = NULL)
+```
+
+```{r}
+# Cumulative explained variability when r1 increases
+tilde <- MakeIdent(opt_res$L, opt_res$G, opt_res$R)
+L_tilde <- tilde$L_tilde
+G_tilde <- tilde$G_tilde
+R_tilde <- tilde$R_tilde
+
+nmiss_idx <- which(!is.na(synthetic_dat@data))
+
+cum_var_L <- rep(NA, 4)
+for (i in 1:4){
+  comp <- array(NA, c(24,3,207))
+  for (j in 1:207){
+    comp[ , , j] <- matrix(L_tilde[, 1:i], ncol=i) %*% matrix(G_tilde[1:i, , j], nrow=i) %*% t(R_tilde)
+  }
+  cum_var_L[i] <- sum(comp[nmiss_idx]^2)/sum(synthetic_dat@data[nmiss_idx]^2)
+}
+
+cum_var_L # 0.4472346 0.5592966 0.6085780 0.6106854
+```
+
+```{r}
+# Separate explained variability for different L ranks
+cum_var_L0 <- c(0, cum_var_L[1:3])
+sep_var_L <- cum_var_L - cum_var_L0
+
+sep_var_L # 0.447234584 0.112062011 0.049281371 0.002107439
+```
+
+```{r}
+# Cumulative explained variability when r2 increases
+cum_var_R <- rep(NA, 2)
+for (i in 1:2){
+  comp <- array(NA, dim(synthetic_dat@data))
+  for (j in 1:207){
+    comp[ , , j] <- L_tilde %*% matrix(G_tilde[,1:i, j], ncol=i) %*% matrix(t(R_tilde[, 1:i]), nrow=i)
+  }
+  cum_var_R[i] <- sum(comp[nmiss_idx]^2)/sum(synthetic_dat@data[nmiss_idx]^2)
+}
+
+cum_var_R # 0.3812621 0.6106854
+```
+
+```{r}
+# Separate explained variability for different R ranks
+cum_var_R0 <- c(0, cum_var_R[1:1])
+sep_var_R <- cum_var_R - cum_var_R0
+
+sep_var_R # 0.3812621 0.2294233
+```
+
+```{r}
+# Plot the explained variability
+var_data_L <- data.frame(
+  component = factor(seq_along(sep_var_L), levels = seq_along(sep_var_L)), 
+  value = sort(sep_var_L, decreasing = TRUE) 
+)
+
+var_data_L$percentage <- paste0(round(var_data_L$value * 100, 2), "%")
+
+ggplot(var_data_L, aes(x = component, y = value)) +
+  geom_bar(stat = "identity", fill = "skyblue") +
+  geom_text(aes(label = percentage), vjust = -0.5, size = 5) +
+  geom_line(aes(group = 1), color = "black", linewidth = 0.5) +
+  geom_point(color = "black", size = 1) +
+  labs(y = "Explained Variability", x="L Component", title="") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), 
+        axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15), 
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1))) 
+
+
+```
+
+```{r}
+# Plot the explained variability
+var_data_R <- data.frame(
+  component = factor(seq_along(sep_var_R), levels = seq_along(sep_var_R)), 
+  value = sort(sep_var_R, decreasing = TRUE) 
+)
+
+var_data_R$percentage <- paste0(round(var_data_R$value * 100, 2), "%")
+
+ggplot(var_data_R, aes(x = component, y = value)) +
+  geom_bar(stat = "identity", fill = "skyblue", width = 0.4) +
+  geom_text(aes(label = percentage), vjust = -0.5, size = 5) +
+  geom_line(aes(group = 1), color = "black", linewidth = 0.5) +
+  geom_point(color = "black", size = 1) +
+  labs(title = "", x = "R Component", y = "Explained Variability") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        axis.title.y = element_text(size = 15),
+        axis.title.x = element_text(size = 15), 
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
+```
+
+# Update hyperparameters for parsimony
 ```{r}
 start_time <- Sys.time()
 
-res <- mglram(tnsr = synthetic_dat@data, ranks = c(4, 2), init=0, D = D2,
-       lambda = 22, max_iter = 500, tol = 1e-5, L0 = NULL)
+res <- mglram(tnsr = synthetic_dat@data, ranks = c(3, 2), init=0, D = D2,
+       lambda = 24, max_iter = 500, tol = 1e-5, L0 = NULL)
 
 res$conv
 
@@ -169,7 +278,7 @@ G_tilde <- tilde$G_tilde
 
 L_tilde
 R_tilde 
-G_tilde[ , ,1:10]
+G_tilde[ , ,1:5]
 
 ```
 
@@ -194,19 +303,104 @@ pL
 R_tilde[, 1] # first component of R tilde
 R_tilde[, 2] # second component of R tilde
 
-## 37/100 DBP + 33/50 SBP + 29/100 HR (Seem to be joint effect of the three)
-R_tilde[1, 1]/sum(R_tilde[, 1]) # DBP: 37/100 
-R_tilde[2, 1]/sum(R_tilde[, 1]) # SBP: 33/100 
-R_tilde[3, 1]/sum(R_tilde[, 1]) # HR: 30/100 = 3/10
+## 36/100 DBP + 31/50 SBP + 33/100 HR (Seem to be joint effect of the three)
+R_tilde[1, 1]/sum(R_tilde[, 1]) # DBP: 36/100 
+R_tilde[2, 1]/sum(R_tilde[, 1]) # SBP: 31/100 
+R_tilde[3, 1]/sum(R_tilde[, 1]) # HR: 33/100 
 
-## -13/100 DBP - 33/100 SBP + 27/50 HR (Contrast between blood pressure and heart rate?)
-R_tilde[1, 2]/sum(abs(R_tilde[, 2])) # DBP: -13/100
-R_tilde[2, 2]/sum(abs(R_tilde[, 2])) # SBP: -33/100 
-R_tilde[3, 2]/sum(abs(R_tilde[, 2])) # HR: 54/100 = 27/50
+## 17/100 DBP + 33/100 SBP - 50/100 HR (Contrast between blood pressure and heart rate)
+R_tilde[1, 2]/sum(abs(R_tilde[, 2])) # DBP: 17/100
+R_tilde[2, 2]/sum(abs(R_tilde[, 2])) # SBP: 33/100 
+R_tilde[3, 2]/sum(abs(R_tilde[, 2])) # HR: -50/100 
 ```
 
 ```{r}
-for (i in 1:25){
+# Prepare to plot effect of time components 
+n = 207
+
+Ri = array(NA, dim = c(3, 3, n))
+for (i in 1:n){
+  Ri[, , i] = G_tilde[, , i] %*% t(R_tilde)
+}
+
+RiL1 = Ri[1, , ] 
+apply(RiL1, 1, sd) # 2.789581 2.997533 3.661661 (sd for DBP, SBP, and HR for 1st time component)
+
+RiL2 = Ri[2, , ]
+apply(RiL2, 1, sd) # 1.379921 1.401255 1.444989 (sd for DBP, SBP, and HR for 2nd time component)
+
+RiL3 = Ri[3, , ]
+apply(RiL3, 1, sd) # 1.067016 1.115904 1.072485 (sd for DBP, SBP, and HR for 3rd time component)
+
+
+DBPmean = rep(70, 24) + (L_tilde[, 1] * mean(RiL1[1,]) + L_tilde[, 2] * mean(RiL2[1,]) + L_tilde[, 3] * mean(RiL3[1,])) * 12 # 70 is the mean of DBP, 12 is the sd of DBP, doing this because we normalized the data initially
+SBPmean = rep(129, 24) + (L_tilde[, 1] * mean(RiL1[2,]) + L_tilde[, 2] * mean(RiL2[2,]) + L_tilde[, 3] * mean(RiL3[2,])) * 18 # 129 is the mean of SBP, 18 is the sd of SBP
+HRmean = rep(76, 24) + (L_tilde[, 1] * mean(RiL1[3,]) + L_tilde[, 2] * mean(RiL2[3,]) + L_tilde[, 3] * mean(RiL3[3,])) * 13 # 76 is the mean of HR, 13 is the sd of HR 
+```
+
+```{r}
+# Plot effect of time components on DBP 
+dataLeffects = data.frame(DBPmean = rep(DBPmean, 6), 
+                          value = c(DBPmean + L_tilde[, 1] * 3*12, DBPmean - L_tilde[, 1] * 3*12, 
+                                    DBPmean + L_tilde[, 2] *1.1*12, DBPmean - L_tilde[, 2] * 1.1*12, 
+                                    DBPmean + L_tilde[, 3] * 0.9*12, DBPmean - L_tilde[, 3] * 0.9*12),
+                          component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
+                          sign = rep(rep(c("positive", "negative"), each = 24), 3),
+                          hour = rep(12:35, 6))
+
+pdataL = dataLeffects %>%
+  ggplot(aes(x = hour, y = value, group = sign, col = sign)) + geom_line(alpha = 0.5) +
+  scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
+  xlab("Hour of the day") + 
+  facet_grid(~ component) + 
+  ylab("DBP") + geom_line(aes(x = hour, y = DBPmean), col = "black") +
+  theme(text = element_text(size = 15)) 
+
+pdataL
+```
+
+```{r}
+# Plot effect of time components on SBP 
+dataLeffects = data.frame(SBPmean = rep(SBPmean, 6), 
+                          value = c(SBPmean + L_tilde[, 1] * 3.1*18, SBPmean - L_tilde[, 1] * 3.1*18, 
+                                    SBPmean + L_tilde[, 2] * 1.2*18, SBPmean - L_tilde[, 2] * 1.2*18, 
+                                    SBPmean + L_tilde[, 3] * 1*18, SBPmean - L_tilde[, 3] * 1*18),
+                          component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
+                          sign = rep(rep(c("positive", "negative"), each = 24), 3),
+                          hour = rep(12:35, 6))
+
+pdataL = dataLeffects %>%
+  ggplot(aes(x = hour, y = value, group = sign, col = sign)) + geom_line(alpha = 0.5) +
+  scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
+  xlab("Hour of the day") + facet_grid(~ component) + ylab("SBP") + geom_line(aes(x = hour, y = SBPmean), col = "black") +
+  theme(text = element_text(size = 15)) 
+
+pdataL
+```
+
+```{r}
+# Plot effect of time components on HR
+dataLeffects = data.frame(HRmean = rep(HRmean, 6), 
+                          value = c(HRmean + L_tilde[, 1] * 4*13, HRmean - L_tilde[, 1] *4*13, 
+                                    HRmean + L_tilde[, 2] * 1.3*13, HRmean - L_tilde[, 2] * 1.3*13, 
+                                    HRmean + L_tilde[, 3] * 1.1*13, HRmean - L_tilde[, 3] * 1.1*13),
+                          component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
+                          sign = rep(rep(c("positive", "negative"), each = 24), 3),
+                          hour = rep(12:35, 6))
+
+pdataL = dataLeffects %>%
+  ggplot(aes(x = hour, y = value, group = sign, col = sign)) + geom_line(alpha = 0.5) +
+  scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
+  xlab("Hour of the day") + facet_grid(~ component) + ylab("HR") + geom_line(aes(x = hour, y = HRmean), col = "black") +
+  theme(text = element_text(size = 15)) 
+
+pdataL
+```
+
+
+# Plot estimated curves for some patients
+```{r}
+for (i in 1:5){
   plot(synthetic_dat@data[ , 1, i], main=paste(i,"th patient"), xlab="Hour", ylab="DBP", ylim=c(-2,2)) # original data
   lines(res$est[ , 1, i], col="blue") # estimated curve by our algorithm
 }
@@ -214,7 +408,7 @@ for (i in 1:25){
 
 ```{r}
 # Plot Estimated Curves for SBP
-for (i in 50:75){
+for (i in 70:75){
   plot(synthetic_dat@data[ , 2, i], main=paste(i,"th patient"), xlab="Hour", ylab="SBP", ylim=c(-2.5,2))
   lines(res$est[ , 2, i], col="blue")
 }
@@ -222,13 +416,13 @@ for (i in 50:75){
 
 ```{r}
 # Plot Estimated Curves for HR
-for (i in 150:175){
+for (i in 170:175){
   plot(synthetic_dat@data[ , 3, i], main=paste(i,"th patient"), xlab="Hour", ylab="HR")
   lines(res$est[ , 3, i], col="blue")
 }
 ```
 
-## Comparison with FPCA (Example)
+# Comparison with FPCA (Example)
 ```{r, warning=FALSE}
 library(refund)
 h1 <- rTensor::unfold(synthetic_dat[,1,], row_idx = 2, col_idx = 1)@data
