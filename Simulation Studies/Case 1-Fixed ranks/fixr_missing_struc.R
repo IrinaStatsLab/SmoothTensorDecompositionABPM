@@ -13,7 +13,9 @@ nworkers <- detectCores()
 cl <- makePSOCKcluster(nworkers)
 registerDoParallel(cl)
 
+# Results generated from running SmoothHOOI algorithm on real data, with hyperparameter optimization and identifiability correction
 load("./AlgorithmResIdent.Rda")
+# load("./synthetic_raw.Rda") 
 
 N <- 100
 p <- 200
@@ -29,6 +31,7 @@ set.seed(32132)
 
 fixr_missstruc <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","SmoothHOOI")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=1, pattern="structured")
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=1, pattern="structured") # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   

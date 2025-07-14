@@ -15,6 +15,7 @@ registerDoParallel(cl)
 
 ## Results generated from running SmoothHOOI algorithm on real data, with hyperparameter optimization and identifiability correction
 load("/home/lyqian/ABPM_new/AlgorithmResIdent.Rda")
+# load("/home/lyqian/ABPM_new/synthetic_raw.Rda") 
 
 N <- 100
 p <- 200
@@ -32,6 +33,7 @@ set.seed(123456)
 results_miss0_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","SmoothHOOI")) %dorng%{
   ## Generate a simulated data
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=1, pattern="random", percent=0)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=1, pattern="random", percent=0) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
@@ -77,6 +79,7 @@ set.seed(234567)
 
 results_miss10_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","myglram")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=1, pattern="random", percent=0.1)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=1, pattern="random", percent=0.1) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
@@ -119,6 +122,7 @@ set.seed(345678)
 
 results_miss20_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","myglram")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=1, pattern="random", percent=0.2)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=1, pattern="random", percent=0.2) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
@@ -161,6 +165,7 @@ set.seed(456789)
 
 results_miss50_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","myglram")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=1, pattern="random", percent=0.5)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=1, pattern="random", percent=0.5) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   

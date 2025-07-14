@@ -13,7 +13,9 @@ nworkers <- detectCores()
 cl <- makePSOCKcluster(nworkers)
 registerDoParallel(cl)
 
+# Results generated from running SmoothHOOI algorithm on real data, with hyperparameter optimization and identifiability correction
 load("/home/lyqian/ABPM_new/AlgorithmResIdent.Rda")
+# load("/home/lyqian/ABPM_new/synthetic_raw.Rda") 
 
 N <- 100
 p <- 200
@@ -27,6 +29,7 @@ set.seed(76543)
 
 fixr_noise01 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","SmoothHOOI")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=0.1, pattern="random", percent=0.2)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=0.1, pattern="random", percent=0.2) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
@@ -67,6 +70,7 @@ set.seed(87654)
 
 fixr_noise2 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","SmoothHOOI")) %dorng%{
   sim_data <- simdata_generator(L_tilde, G_tilde, R_tilde, E, p=200, noise_level=2, pattern="random", percent=0.2)
+  # sim_data <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=200, noise_level=2, pattern="random", percent=0.2) # if using synthetic_raw.Rda, exactly the same 
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
