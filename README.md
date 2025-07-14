@@ -2,7 +2,7 @@
 
 This is a repository for the implementation of the paper "Smooth Tensor Decomposition with Application to Ambulatory Blood Pressure Monitoring Data". The implementation depends on the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
-Data used in **HYPNOS Application** and **Simulation Studies** are confidential. Synthetically generated ABPM data that mimics the characteristics of data analyzed in the paper is presented in **Synthetic Example**.
+Data used in **HYPNOS Application** are confidential. Synthetically generated ABPM data that mimics the characteristics of data analyzed in the paper is presented in **Synthetic Example**.
 
 ## HYPNOS Application
 
@@ -33,7 +33,7 @@ In `Case 1-Fixed ranks` and `Case 2-Flexible ranks` folders, the following abbre
 
 This folder presents a synthetic example that shows the workflow of this study and the usage of the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
-- `synthetic_raw.Rda`: data used to generate synthetic data
+- `synthetic_raw.Rda`: L, R, mean of G scores, covariance of G scores, and empirical residuals generated from HYPNOS Application, used to generate `synthetic_data.Rda`
 - `synthetic_data.Rda`: synthetic data
 - `Synthetic Example.Rmd`: code for this synthetic example
 - `Synthetic-Example.pdf`: output for this synthetic example
