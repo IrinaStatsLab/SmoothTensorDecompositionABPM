@@ -9,13 +9,17 @@ Data used in **HYPNOS Application** are confidential. Synthetically generated AB
 This folder includes code for reproducing the results in Section 4 of the paper.
 
 - `1a_Data Preprocessing.R`: data preprocessing, including low-quality data detection and removal
-- `1b_Tensor Generation.R`: organization of original data into tensor structure
-- `2_Hyperparameter Tuning.R`: hyperparameter tuning, including rank reduction for parsimony
+- `1b_Tensor Generation.R`: organization of original data into a tensor structure
+- `2a_Autocorrelation.R`: check residual autocorrelation in the ABPM data
+- `2b_Hyperparameter Tuning.R`: hyperparameter tuning, including rank reduction for parsimony
 - `3_Algorithm Run.R`: implementation of SmoothHOOI algorithm, with optimal hyperparameter applied
 - `4a_Result Visualization.R`: visualization of temporal components and estimated curves
 - `4b_Chronotype Analysis.R`: validation of the interpretation of the third temporal component (plot of g score vs sleep times)
 - `4c_Regression.R`: regression analysis
-- `4d_Regression Interpretation.R`: visualization of effect sizes and estimation of DBP, SBP, and HR values for different groups of subjects
+- `4d_Regression Interpretation_Effect_size.R`: visualization of effect sizes of all the variables
+- `4e_Regression Interpretation_Profile.R`: estimation of DBP, SBP, and HR profiles for different groups of subjects
+- `4f_CP_Analysis.R`: instability of CP decomposition in ABPM data
+- `4g_MFPCA_Analysis.R`: MFPCA analysis for ABPM data 
 
 ## Simulation Studies
 
