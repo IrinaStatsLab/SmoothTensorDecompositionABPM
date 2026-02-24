@@ -1,5 +1,5 @@
-load("./Application/AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
-load("./Application/filtered_ABPM_new.Rda") # filtered_abpm_new
+load("./AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
+load("./filtered_ABPM_new.Rda") # filtered_abpm_new
 
 library(ggplot2)
 library(dplyr)
@@ -25,27 +25,19 @@ id_clean <- wake_data %>%
 # Remove subjects who have more multiple patterns within the same hour
 wake_clean <- wake_data[wake_data$ID %in% id_clean$ID, ]
 
+length(unique(wake_clean$ID)) # 181
+
 # Check subjects who only have WAKE == 1 and no WAKE == 0
 wake_only <- wake_clean %>%
   group_by(ID) %>%
   summarise(has_sleep = any(WAKE == 0), .groups = "drop") %>%
   filter(!has_sleep)
-length(wake_only$ID)
+
+length(wake_only$ID) # 7
 
 # Remove subjects who do not have sleep times
 wake_clean <- wake_clean %>% 
   filter(WAKE==0) 
-
-#pdf("./Application/wake_plots.pdf")
-
-# Plot the sleep time for all subjects in wake_reordered
-for (i in 1:length(unique(wake_clean$ID))){
-  id <- unique(wake_clean$ID)[i]
-  print(ggplot(filtered_abpm_new[filtered_abpm_new$ID==id,], aes(x=DATE_TIME, y=WAKE)) + 
-          geom_point()+
-          labs(title=id))
-}
-#dev.off()
 
 # Remove subjects who have more than one-day record of sleep time (ID==70217, 70356, 70501, 70567, 70610)
 wake_clean <- wake_clean %>%
@@ -96,13 +88,14 @@ ggplot() +
   geom_point(data = wake_10_summary, aes(x = mean_10, y = mean_g31), color = "red", size = 2) +
   labs(x = "Hour", y = "G score", color = "G score") +
   scale_x_continuous(#limits=c(0,24), 
-    breaks = seq(0,24, by=1), labels = c(seq(12,23, by=1), seq(0,12, by=1))) +
+    breaks = seq(0,24, by=2), labels = c(seq(12,23, by=2), seq(0,12, by=2))) +
   theme_minimal()+
-  theme(legend.text = element_text(size = 15),
-        legend.title = element_text(size = 15),
-        axis.title = element_text(size = 15),
-        axis.text = element_text(size=15))
+  theme(legend.position = "none",
+        legend.text = element_text(size = 18),
+        legend.title = element_text(size = 18),
+        axis.title = element_text(size = 18),
+        axis.text = element_text(size=18))
 
-# ggsave("./Application/g31_vs_sleeptime.pdf", dpi=600, width=7, height=5)
+# ggsave("g31_update.pdf", dpi=600, width=5, height=5)
 
 

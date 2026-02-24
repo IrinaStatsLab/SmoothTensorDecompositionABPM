@@ -1,4 +1,4 @@
-load("./Application/missing_normalized_3.Rda")
+load("./missing_normalized_3.Rda")
 
 library(SmoothHOOI)
 
@@ -31,4 +31,4 @@ E <- missing_normalized_3@data - res$est
 
 #save(L_tilde, R_tilde, G_tilde, E, file="AlgorithmResIdent.Rda")
 
-#save(L_tilde, R_tilde, mean_G, cov_G, E, file="synthetic_base.Rda")
+#save(L_tilde, R_tilde, mean_G, cov_G, E, file="synthetic_raw.Rda")

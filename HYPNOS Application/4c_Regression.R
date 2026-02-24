@@ -1,6 +1,6 @@
-load("./Application/AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
-load("./Application/filtered_ABPM_new.Rda") # filtered_abpm_new
-load("./Application/combinedCGMmetricsCovariates.Rda") # combined
+load("./AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
+load("./filtered_ABPM_new.Rda") # filtered_abpm_new
+load("./combinedCGMmetricsCovariates.Rda") # combined
 
 library(rTensor)
 library(dplyr)
@@ -42,7 +42,7 @@ xpred <- covariates[,-c(2:4)]
 
 ## Make race=white and gender=male as reference levels
 xpred$race_White_inv <- 1 - xpred$race_White 
-xpred$gender_inv <- 1 - xpred$gender
+xpred$gender_inv <- 1 - xpred$gender # in gender, male = 1. So we create a new variable gender_inv where female = 1
 
 ## Check outliers
 summary(xpred$odi4)
@@ -62,8 +62,6 @@ summary_table <- xpred %>%
   select(age, gender, race_White, BMI, exp_odi4) %>% 
   tbl_summary(
     by = gender,         
-    # statistic = list(all_continuous() ~ "{mean} ({sd}); {median}[{min}, {max}]",
-    #                  all_categorical() ~ "{n} ({p}%)"),  
     statistic = list(all_continuous() ~ "{mean} ({sd}); {median}[{p25}, {p75}]",
                      all_categorical() ~ "{n} ({p}%)"),  
     digits = all_continuous() ~ 1
@@ -131,8 +129,89 @@ means_bynight = filtered_abpm_new %>%
   summarize(SBPmean = mean(SBP, na.rm = TRUE), DBPmean = mean(DBP, na.rm = TRUE),
             MAPmean = mean(MAP, na.rm = TRUE), HRmean = mean(HR, na.rm = TRUE), .groups = "drop")
 
+## Visualize means_bynight
+
+df_long <- means_bynight %>%
+  select(ID, type, SBPmean, DBPmean, HRmean) %>%
+  pivot_longer(
+    cols = c(DBPmean, SBPmean, HRmean),
+    names_to = "Measure",
+    values_to = "Value"
+  ) %>% 
+  mutate(Measure = factor(Measure, levels = c("DBPmean", "SBPmean", "HRmean")))
+  
+ggplot(df_long, aes(x = type, y = Value)) +
+  geom_boxplot(aes(fill = type),
+               width = 0.35,
+               outlier.shape = NA,
+               alpha = 0.4) +
+  geom_line(aes(group = ID), alpha = 0.2) +
+  geom_point(size = 0.5) +
+  facet_wrap(~ Measure, ncol = 3, scales = "free_y", 
+             labeller = as_labeller(c(
+               "DBPmean" = "DBP (mmHg)",
+               "SBPmean" = "SBP (mmHg)",
+               "HRmean" = "HR (bpm)"
+             ))) +
+  labs(x = "Time of day", y = "Value") +
+  theme_bw() +
+  theme(legend.position = "none", 
+        strip.text = element_text(face = "bold", size = 12), 
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15))
+
+# ggsave("Day_Night_Boxplots.pdf", dpi=600, width=9, height=5)
+
+## Correlation between Day and Night
+wide_df <- df_long %>%
+  pivot_wider(names_from = type, values_from = Value)
+
+correlations <- wide_df %>%
+  group_by(Measure) %>%
+  summarize(
+    correlation = cor(Day, Night, use = "complete.obs"),
+    p_value = cor.test(Day, Night)$p.value
+  )
+correlations
+
+##DBPmean       0.651 
+##SBPmean       0.723 
+##HRmean        0.731
+
+## correlation between 6 measures
 means_bynight_wide = pivot_wider(means_bynight, id_cols = "ID", names_from = "type", values_from = c("SBPmean", "DBPmean", "MAPmean", "HRmean"))
 means_bynight_wide$ID = as.numeric(as.character(means_bynight_wide$ID))
+
+cor_matrix <- cor(means_bynight_wide[, c("DBPmean_Day","SBPmean_Day", "HRmean_Day", 
+                                         "DBPmean_Night","SBPmean_Night", "HRmean_Night")], 
+                  use = "complete.obs")
+cor_matrix
+
+library(ggcorrplot)
+
+new_names <- c("DBP_Day","SBP_Day","HR_Day","DBP_Night","SBP_Night","HR_Night")
+colnames(cor_matrix) <- new_names
+rownames(cor_matrix) <- new_names
+
+ggcorrplot(cor_matrix, 
+           method = "square",       
+           type = "lower",          
+           lab = TRUE,              
+           lab_size = 5,           
+           colors = c("blue", "white", "firebrick"), 
+           # title = "Correlation Matrix of ABPM Parameters",
+           ggtheme = theme_minimal()) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14, hjust = 0.5),
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 12), 
+    #axis.text.y = element_text(size = 12),
+    axis.title = element_blank(), 
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    
+  )
+
+#ggsave("Day_Night_Measure_Corr.pdf", dpi=600, width=7, height=7)
 
 alldata = left_join(xpred, means_bynight_wide, by= c("id" = "ID"))
 
@@ -164,66 +243,4 @@ for (i in c(2:5, 0)){
           mutate(p.value_adjusted=p.adjust(p.value, 
                                            method="bonferroni")))
 }
-
-# Marginal model for BMI
-out1_BMI = lm(TensorScore1 ~ BMI, data = scoredata1)
-summary(out1_BMI) 
-
-out2_BMI = lm(TensorScore2 ~ BMI, data = scoredata2)
-summary(out2_BMI) 
-
-# Marginal model for age
-out1_age = lm(TensorScore1 ~ age, data = scoredata1)
-summary(out1_age) 
-
-out2_age = lm(TensorScore2 ~ age, data = scoredata2)
-summary(out2_age) 
-
-
-# BMI + one of other covariates 
-
-out1_BMI = lm(TensorScore1 ~ BMI + age, data = scoredata1)
-summary(out1_BMI) 
-
-out2_BMI = lm(TensorScore2 ~ BMI + age, data = scoredata2)
-summary(out2_BMI) 
-
-out1_BMI = lm(TensorScore1 ~ BMI + gender_inv, data = scoredata1)
-summary(out1_BMI) 
-
-out2_BMI = lm(TensorScore2 ~ BMI + gender_inv, data = scoredata2)
-summary(out2_BMI)
-
-out1_BMI = lm(TensorScore1 ~ BMI + race_White_inv, data = scoredata1)
-summary(out1_BMI) 
-
-out2_BMI = lm(TensorScore2 ~ BMI + race_White_inv, data = scoredata2)
-summary(out2_BMI)
-
-out1_BMI = lm(TensorScore1 ~ BMI + odi4, data = scoredata1)
-summary(out1_BMI) 
-
-out2_BMI = lm(TensorScore2 ~ BMI + odi4, data = scoredata2)
-summary(out2_BMI) 
-
-# Interaction models 
-
-out1 = lm(TensorScore1 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:age, data = scoredata1)
-summary(out1) 
-
-out2 = lm(TensorScore2 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:age, data = scoredata2)
-summary(out2) 
-
-out1 = lm(TensorScore1 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:race_White_inv, data = scoredata1)
-summary(out1) 
-
-out2 = lm(TensorScore2 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:race_White_inv, data = scoredata2)
-summary(out2) 
-
-out1 = lm(TensorScore1 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:gender_inv, data = scoredata1)
-summary(out1) 
-
-out2 = lm(TensorScore2 ~ age + BMI + gender_inv + race_White_inv + odi4 + BMI:gender_inv, data = scoredata2)
-summary(out2) 
-
 

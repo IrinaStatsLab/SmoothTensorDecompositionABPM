@@ -1,6 +1,6 @@
-load("./Application/missing_normalized_3.Rda")
-load("./Application/fpca_filled.Rda") 
-load("./Application/AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
+load("./missing_normalized_3.Rda")
+load("./fpca_filled.Rda") 
+load("./AlgorithmResIdent.Rda") # L_tilde, R_tilde, G_tilde
 
 library(rTensor)
 library(dplyr)
@@ -26,7 +26,7 @@ pL = dataL %>%
 
 pL
 
-# ggsave("./Application/L_comp.pdf", dpi=600, width=8, height=2.5)
+# ggsave("L_comp.pdf", dpi=600, width=8, height=2.5)
 
 # Plot effect of time components 
 n = 207
@@ -69,7 +69,7 @@ pdataL = dataLeffects %>%
 
 pdataL
 
-# ggsave("./Application/DBP.pdf", dpi=600, width=8, height=2.5)
+# ggsave("DBP_legendupdate.pdf", dpi=600, width=8, height=2.5)
 
 
 # Plot effect of time components on SBP 
@@ -89,7 +89,7 @@ pdataL = dataLeffects %>%
 
 pdataL
 
-# ggsave("./Application/SBP.pdf", dpi=600,  width=8, height=2.5)
+# ggsave("SBP.pdf", dpi=600,  width=8, height=2.5)
 
 # Plot effect of time components on HR
 dataLeffects = data.frame(HRmean = rep(HRmean, 6), 
@@ -108,7 +108,7 @@ pdataL = dataLeffects %>%
 
 pdataL
 
-# ggsave("./Application/HR.pdf", dpi=600, width=8, height=2.5)
+# ggsave("HR.pdf", dpi=600, width=8, height=2.5)
 
 # What R looks like
 R_tilde[, 1] # first component of R tilde
@@ -143,6 +143,6 @@ for (i in 1:207){
 # Plot Estimated Curves for HR
 for (i in 1:207){
   plot(missing_normalized_3@data[ , 3, i], main=paste(i,"th patient"), xlab="Hour", ylab="HR")
-  lines(fpca_filled@data[ , 4, i], col="green")
+  lines(fpca_filled@data[ , 3, i], col="green")
   lines(est@data[ , 3, i], col="blue")
 }

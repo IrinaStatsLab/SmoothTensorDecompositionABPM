@@ -1,4 +1,4 @@
-load("./Application/missing_normalized_3.Rda")
+load("./missing_normalized_3.Rda")
 
 library(SmoothHOOI)
 library(ggplot2)
@@ -67,7 +67,6 @@ for (i in 1:3){
     comp[ , , j] <- L_tilde %*% matrix(G_tilde[,1:i, j], ncol=i) %*% matrix(t(R_tilde[, 1:i]), nrow=i)
   }
   cum_var_R[i] <- sum(comp[nmiss_idx]^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
-  # cum_var_R[i] <- 1 - sum((comp[nmiss_idx]-missing_normalized_3@data[nmiss_idx])^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
 }
 
 cum_var_R # 0.3786139 0.5849324 0.6584467
@@ -101,7 +100,7 @@ ggplot(var_data_L, aes(x = component, y = value)) +
         axis.text.y = element_text(size = 14)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) 
 
-# ggsave("./Application/var_L.pdf", dpi=600, width=6, height=4)
+# ggsave("var_L.pdf", dpi=600, width=6, height=4)
 
 # The 4th - 6th components explain variability <1%, can be removed
 
@@ -127,7 +126,7 @@ ggplot(var_data_R, aes(x = component, y = value)) +
         axis.text.y = element_text(size = 14)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
-# ggsave("./Application/var_R.pdf", dpi=600, width=6, height=4)
+# ggsave("var_R.pdf", dpi=600, width=6, height=4)
 
 # The 3rd components explain variability can be removed
 
