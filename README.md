@@ -2,7 +2,7 @@
 
 This is a repository for the implementation of the paper "Smooth Tensor Decomposition with Application to Ambulatory Blood Pressure Monitoring Data". The implementation depends on the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
-Data used in **HYPNOS Application** are confidential. Synthetically generated ABPM data that mimics the characteristics of data analyzed in the paper is presented in **Synthetic Example**.
+Data used in **HYPNOS Application** are confidential. Synthetically generated ABPM data that mimics the characteristics of data analyzed in the paper is presented in **Synthetic Example**. 
 
 ## HYPNOS Application
 
@@ -25,13 +25,20 @@ This folder includes code for reproducing the results in Section 4 of the paper.
 
 This folder includes code for reproducing the results in Section 3 of the paper. 
 
-In `Case 1-Fixed ranks` and `Case 2-Flexible ranks` folders, the following abbreviations were used to name the files:
+- `synthetic_raw.Rda`: L, R, mean of G scores, covariance of G scores, and empirical residuals generated from HYPNOS Application, used to generate data for simulation studies
+- `cp_run.R`: script for running CP decomposition for all the simulation settings
+- `fpca_run.R`: script for running univariate FPCA for all the simulation settings
+- `mfpca_run.R`: script for running MFPCA for all the simulation settings
+
+In `Study 1-Case 1-Fixed ranks` and `Study 1-Case 2-Flexible ranks` folders, the following abbreviations were used to name the files:
 - `missing_rate`: random missingness
 - `missing_struc`: structured missingness
 - `noise_level`: noise level
 - `p`: sample size
+- `result_analysis`: the code for generating the figures related to simulation studies.
 
-`sim_analysis.R` includes the code for plotting the figures related to simulation studies.
+In the `Study 2` folder, `no_ar1_flexible.R` and `ar1_flexible.R` are the scripts for running the simulation study with no AR(1) correlation and with AR(1) correlation, respectively.
+`no_ar1_analysis.R` and `ar1_analysis.R` are the scripts for generating the related figures.
 
 ## Synthetic Example
 
