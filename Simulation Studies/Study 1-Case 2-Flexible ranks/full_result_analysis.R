@@ -67,7 +67,7 @@ for (set in Setting) {
   }
 }
 
-methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full, FPCA = fpca_M_full, CP_Ortho = cp_M_full, CP = cp_no_M_full, MFPCA = mfpca_M_full)
+methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full, FPCA = fpca_M_full, CP_Ortsmo = cp_M_full, CP_Smooth = cp_no_M_full, MFPCA = mfpca_M_full)
 
 data_list_full <- list()
 
@@ -86,7 +86,7 @@ data_full <- do.call(rbind, data_list_full)
 
 data <- data.frame(data_full)
 
-data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortho", "CP"))
+data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth"))
 data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data$panel <- factor(data$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
@@ -109,20 +109,20 @@ ggplot(data[which(data$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, f
   theme(
     legend.position = "bottom",
     legend.direction = "horizontal",
-    axis.text.x = element_text(angle = 30, hjust = 1, size = 15),
-    plot.title = element_text(hjust = 0.5, size = 15),
-    axis.title = element_text(hjust = 0.5, size = 15),
-    axis.text.y = element_text(hjust = 0.5, size = 15),
-    strip.text = element_text(size = 15),
-    legend.text = element_text(size = 15),
-    legend.title = element_text(size = 15)
+    axis.text.x = element_text(angle = 30, hjust = 1, size = 13),
+    plot.title = element_text(hjust = 0.5, size = 13),
+    axis.title = element_text(hjust = 0.5, size = 13),
+    axis.text.y = element_text(hjust = 0.5, size = 13),
+    strip.text = element_text(size = 13),
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 13)
   )
 #ggsave("./full_lossM_boxplot_complete.pdf", width=12, height=10)
 
 data_subset <- data.frame(data_full) 
-data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP"))
+data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Smooth"))
 
-data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP"))
+data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Smooth"))
 data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_subset$panel <- factor(data_subset$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
@@ -191,9 +191,9 @@ rank_data_list_full <- rank_data_list_full %>%
 rank_data_list_full$method <- dplyr::recode(rank_data_list_full$method,
                                             kcv_rank_full = "SmoothHOOI",
                                             fpca_rank_full = "FPCA",
-                                            cp_rank_full = "CP_Ortho")
+                                            cp_rank_full = "CP_Ortsmo")
 
-rank_data_list_full$method <- factor(rank_data_list_full$method, levels=c("SmoothHOOI", "FPCA", "CP_Ortho"))
+rank_data_list_full$method <- factor(rank_data_list_full$method, levels=c("SmoothHOOI", "FPCA", "CP_Ortsmo"))
 
 rank_data_list_full$Rank <- factor(rank_data_list_full$Rank,
                                    levels = c("2","3","4","5","6"))
@@ -250,8 +250,4 @@ for (i in 1:100){
 summary(missing_rate_vec_full)
 
 summary(c(missing_rate_vec_fixr,missing_rate_vec_full))
-
-
-
-
 

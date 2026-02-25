@@ -76,7 +76,7 @@ for (set in Setting) {
   }
 }
 
-methods_fixr <- list(Oracle = oracle_M_fixr, SmoothHOOI = kcv_M_fixr, FPCA = fpca_M_fixr, CP3_Ortho = cp3_M_fixr, CP6_Ortho = cp6_M_fixr, CP3 = cp3_no_M_fixr, CP6 = cp6_no_M_fixr, MFPCA = mfpca_M_fixr)
+methods_fixr <- list(Oracle = oracle_M_fixr, SmoothHOOI = kcv_M_fixr, FPCA = fpca_M_fixr, CP3_Ortsmo = cp3_M_fixr, CP6_Ortsmo = cp6_M_fixr, CP3_Smooth = cp3_no_M_fixr, CP6_Smooth = cp6_no_M_fixr, MFPCA = mfpca_M_fixr)
 
 data_list_fixr <- list()
 
@@ -95,7 +95,7 @@ data_fixr <- do.call(rbind, data_list_fixr)
 
 data <- data.frame(data_fixr)
 
-data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Ortho", "CP6_Ortho", "CP3", "CP6"))
+data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth"))
 data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data$panel <- factor(data$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
@@ -119,17 +119,17 @@ ggplot(data[which(data$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, f
   theme(
     legend.position = "bottom",
     legend.direction = "horizontal",
-    axis.text.x = element_text(angle = 30, hjust = 1, size = 15),
-    plot.title = element_text(hjust = 0.5, size = 15),
-    axis.title = element_text(hjust = 0.5, size = 15),
-    axis.text.y = element_text(hjust = 0.5, size = 15),
-    strip.text = element_text(size = 15),
-    legend.text = element_text(size = 15),
-    legend.title = element_text(size = 15)
+    axis.text.x = element_text(angle = 30, hjust = 1, size = 13),
+    plot.title = element_text(hjust = 0.5, size = 13),
+    axis.title = element_text(hjust = 0.5, size = 13),
+    axis.text.y = element_text(hjust = 0.5, size = 13),
+    strip.text = element_text(size = 13),
+    legend.text = element_text(size = 13),
+    legend.title = element_text(size = 13)
   )
 #ggsave("./fixr_lossM_boxplot_complete.pdf", width=12, height=10)
 
-lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Ortho = cp3_L_fixr, CP6_Ortho = cp6_L_fixr, CP3 = cp3_no_L_fixr, CP6 = cp6_no_L_fixr)
+lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Ortsmo = cp3_L_fixr, CP6_Ortsmo = cp6_L_fixr, CP3_Smooth = cp3_no_L_fixr, CP6_Smooth = cp6_no_L_fixr)
 
 data_list_lossL <- list()
 
@@ -146,7 +146,7 @@ for (method in names(lossL)) {
 
 data_lossL <- do.call(rbind, data_list_lossL)
 
-data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Ortho", "CP6_Ortho", "CP3", "CP6"))
+data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth"))
 data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
@@ -165,7 +165,7 @@ ggplot(data_lossL[which(data_lossL$Setting!="Noise: 0.1"),], aes(x = Setting, y 
         strip.placement = "outside") +
   facet_nested(~panel, scales = "free", space ="free_x", independent = "y") 
 
-#ggsave("./fixr_lossL_boxplot_complete.pdf", width=12, height=6)
+#ggsave("./fixr_lossL_boxplot_complete.pdf", width=15, height=6)
 
 missing_rate_vec_fixr <- c()
 for (i in 1:100){
@@ -175,9 +175,9 @@ summary(missing_rate_vec_fixr)
 
 
 data_subset <- data.frame(data_fixr) 
-data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3", "CP6"))
+data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Smooth", "CP6_Smooth"))
 
-data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3", "CP6"))
+data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Smooth", "CP6_Smooth"))
 data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_subset$panel <- factor(data_subset$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
@@ -210,7 +210,7 @@ ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, 
   )
 #ggsave("./fixr_lossM_boxplot_noOrtho.pdf", width=12, height=8)
 
-lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3 = cp3_no_L_fixr, CP6 = cp6_no_L_fixr)
+lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Smooth = cp3_no_L_fixr, CP6_Smooth = cp6_no_L_fixr)
 
 data_list_lossL <- list()
 
@@ -227,7 +227,7 @@ for (method in names(lossL)) {
 
 data_lossL <- do.call(rbind, data_list_lossL)
 
-data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3", "CP6"))
+data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Smooth", "CP6_Smooth"))
 data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 

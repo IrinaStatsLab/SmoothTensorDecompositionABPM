@@ -62,7 +62,7 @@ for (set in Setting) {
   }
 }
 
-methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full,hblock=kcv_hblock_M_full, FPCA = fpca_M_full, CP_Ortho = cp_M_full, CP = cp_no_M_full, MFPCA = mfpca_M_full)
+methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full,hblock=kcv_hblock_M_full, FPCA = fpca_M_full, CP_Ortsmo = cp_M_full, CP_Smooth = cp_no_M_full, MFPCA = mfpca_M_full)
 
 data_list_full <- list()
 
@@ -81,7 +81,7 @@ data_full <- do.call(rbind, data_list_full)
 
 data <- data.frame(data_full)
 
-data$Method <- factor(data$Method, levels=c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP_Ortho", "CP"))
+data$Method <- factor(data$Method, levels=c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth"))
 
 panel_limits <- data %>%
   group_by(panel) %>%
@@ -110,9 +110,9 @@ ggplot(data, aes(x = Method, y = y_value, fill = Method)) +
 #ggsave("./full_lossM_boxplot_complete.pdf", width=12, height=10)
 
 data_subset <- data.frame(data_full) 
-data_subset <- subset(data_subset, Method %in% c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP"))
+data_subset <- subset(data_subset, Method %in% c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP_Smooth"))
 
-data_subset$Method <- factor(data_subset$Method, levels=c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP"))
+data_subset$Method <- factor(data_subset$Method, levels=c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP_Smooth"))
 
 panel_limits <- data_subset %>%
   group_by(panel) %>%
