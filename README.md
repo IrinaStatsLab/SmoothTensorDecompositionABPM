@@ -38,7 +38,7 @@ In `Case 1-Fixed ranks` and `Case 2-Flexible ranks` folders, the following abbre
 This folder presents a synthetic example that shows the workflow of this study and the usage of the [SmoothHOOI](https://github.com/IrinaStatsLab/SmoothHOOI) R package.
 
 - `synthetic_raw.Rda`: L, R, mean of G scores, covariance of G scores, and empirical residuals generated from HYPNOS Application, used to generate `synthetic_data.Rda`
-- `synthetic_data.Rda`: synthetic data
+- `synthetic_data.Rda`: synthetic ABPM data
 - `Synthetic Example.Rmd`: code for this synthetic example
 - `Synthetic-Example.pdf`: output for this synthetic example
 

@@ -14,15 +14,12 @@ library(tidyr)
 This is an illustration of how to use our functions on synthetic data 
 
 ```{r}
-set.seed(32123)
+set.seed(1234)
 ```
 
 # Generate synthetic data
 ```{r}
-#synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern="random", percent=0.2)
-
-synthetic <- synthetic_data(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern = "structured")
-
+synthetic <- sim_data2(L_tilde, R_tilde, mean_G, cov_G, E, p=207, noise_level=1, pattern = "structured", lower=0, upper=20)
 synthetic_dat <- synthetic$sim_Mmiss
 
 #save(synthetic_dat, file = "synthetic_data.Rda")
@@ -41,7 +38,7 @@ est_df <- matrix(NA, nrow=24, ncol=length(lambda_seq))
 for (i in 1:length(lambda_seq)){
   lambda <- lambda_seq[i]
   res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
-                 lambda = lambda, max_iter = 500, tol = 1e-5, L0_ = NULL)
+                 lambda = lambda, max_iter = 500, tol = 1e-5, L0 = NULL)
   est_df[,i] <- (res$est[,1,180])*12 +70
 }
 org_df <- data.frame(cbind(c(1:24), original))
@@ -57,7 +54,7 @@ est_long$lambda <- factor(est_long$lambda, levels=c("lambda0.1","lambda1","lambd
 custom_colors <- c("grey","#9ECAE1","#6BAED6", "#4292C6", "#2171B5","darkblue")
 names(custom_colors) <- levels(factor(est_long$lambda))  
 
-ggplot() +
+ggplot2::ggplot() +
   geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
   geom_line(data = est_long, aes(x = hour, y =y, color = lambda)) +  # Estimated curves
   labs(title = "",
@@ -89,7 +86,7 @@ est_df <- matrix(NA, nrow=24, ncol=length(r1_seq))
 for (i in 1:length(r1_seq)){
   r1 <- r1_seq[i]
   res <-  mglram(tnsr = synthetic_dat@data, ranks = c(r1, 3), init=0, D = D2,
-                 lambda = 10, max_iter = 500, tol = 1e-5, L0_ = NULL)
+                 lambda = 10, max_iter = 500, tol = 1e-5, L0 = NULL)
   est_df[,i] <- (res$est[,1,1])*12 + 70
 }
 
@@ -106,7 +103,7 @@ est_long$r <- factor(est_long$r, levels = paste0("r", r1_seq))
 custom_colors <- c("#FEC44F", "#FE9929","#EC7014","#CC4C02")
 names(custom_colors) <- levels(factor(est_long$r))  
 
-ggplot() +
+ggplot2::ggplot() +
   geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
   geom_line(data = est_long, aes(x = hour, y =y, color = r)) +  # Estimated curves
   labs(title = "",
@@ -137,7 +134,7 @@ ggplot() +
 start_time <- Sys.time()
 
 kcv_res <- kcv(tnsr=synthetic_dat@data, rank_grid=as.matrix(expand.grid(r1<-seq(3,6,by=1), r2<-c(2,3))), lambda_seq=seq(1,30,by=1),
-               k=5, L0_ =NULL, D=D2, tol=0.01, max_iter=500, init=0)
+               k=5, L0 =NULL, D=D2, tol=0.01, max_iter=500, init=0)
 
 end_time <- Sys.time()
 
@@ -150,8 +147,8 @@ kcv_res
 # Check explained variability
 
 ```{r}
-opt_res <- mglram(tnsr = synthetic_dat@data, ranks = c(4, 2), init=0, D = D2,
-       lambda = 22, max_iter = 500, tol = 1e-5, L0 = NULL)
+opt_res <- mglram(tnsr = synthetic_dat@data, ranks = c(5, 2), init=0, D = D2,
+       lambda = 23, max_iter = 500, tol = 1e-5, L0 = NULL)
 ```
 
 ```{r}
@@ -163,8 +160,8 @@ R_tilde <- tilde$R_tilde
 
 nmiss_idx <- which(!is.na(synthetic_dat@data))
 
-cum_var_L <- rep(NA, 4)
-for (i in 1:4){
+cum_var_L <- rep(NA, 5)
+for (i in 1:5){
   comp <- array(NA, c(24,3,207))
   for (j in 1:207){
     comp[ , , j] <- matrix(L_tilde[, 1:i], ncol=i) %*% matrix(G_tilde[1:i, , j], nrow=i) %*% t(R_tilde)
@@ -172,15 +169,15 @@ for (i in 1:4){
   cum_var_L[i] <- sum(comp[nmiss_idx]^2)/sum(synthetic_dat@data[nmiss_idx]^2)
 }
 
-cum_var_L # 0.4472346 0.5592966 0.6085780 0.6106854
+cum_var_L # 0.4448095 0.5574384 0.6032486 0.6055275 0.6065202
 ```
 
 ```{r}
 # Separate explained variability for different L ranks
-cum_var_L0 <- c(0, cum_var_L[1:3])
+cum_var_L0 <- c(0, cum_var_L[1:4])
 sep_var_L <- cum_var_L - cum_var_L0
 
-sep_var_L # 0.447234584 0.112062011 0.049281371 0.002107439
+sep_var_L # 0.4448094949 0.1126289400 0.0458101564 0.0022789411 0.0009927149
 ```
 
 ```{r}
@@ -194,7 +191,7 @@ for (i in 1:2){
   cum_var_R[i] <- sum(comp[nmiss_idx]^2)/sum(synthetic_dat@data[nmiss_idx]^2)
 }
 
-cum_var_R # 0.3812621 0.6106854
+cum_var_R #  0.3966868 0.6065202
 ```
 
 ```{r}
@@ -202,7 +199,7 @@ cum_var_R # 0.3812621 0.6106854
 cum_var_R0 <- c(0, cum_var_R[1:1])
 sep_var_R <- cum_var_R - cum_var_R0
 
-sep_var_R # 0.3812621 0.2294233
+sep_var_R # 0.3966868 0.2098334
 ```
 
 ```{r}
@@ -260,7 +257,7 @@ ggplot(var_data_R, aes(x = component, y = value)) +
 start_time <- Sys.time()
 
 res <- mglram(tnsr = synthetic_dat@data, ranks = c(3, 2), init=0, D = D2,
-       lambda = 24, max_iter = 500, tol = 1e-5, L0 = NULL)
+       lambda = 20, max_iter = 500, tol = 1e-5, L0 = NULL)
 
 res$conv
 
@@ -304,14 +301,14 @@ R_tilde[, 1] # first component of R tilde
 R_tilde[, 2] # second component of R tilde
 
 ## 36/100 DBP + 31/50 SBP + 33/100 HR (Seem to be joint effect of the three)
-R_tilde[1, 1]/sum(R_tilde[, 1]) # DBP: 36/100 
-R_tilde[2, 1]/sum(R_tilde[, 1]) # SBP: 31/100 
-R_tilde[3, 1]/sum(R_tilde[, 1]) # HR: 33/100 
+R_tilde[1, 1]/sum(R_tilde[, 1]) # DBP: 39/100 
+R_tilde[2, 1]/sum(R_tilde[, 1]) # SBP: 35/100 
+R_tilde[3, 1]/sum(R_tilde[, 1]) # HR: 26/100 
 
 ## 17/100 DBP + 33/100 SBP - 50/100 HR (Contrast between blood pressure and heart rate)
-R_tilde[1, 2]/sum(abs(R_tilde[, 2])) # DBP: 17/100
-R_tilde[2, 2]/sum(abs(R_tilde[, 2])) # SBP: 33/100 
-R_tilde[3, 2]/sum(abs(R_tilde[, 2])) # HR: -50/100 
+R_tilde[1, 2]/sum(abs(R_tilde[, 2])) # DBP: 11/100
+R_tilde[2, 2]/sum(abs(R_tilde[, 2])) # SBP: 31/100 
+R_tilde[3, 2]/sum(abs(R_tilde[, 2])) # HR: -58/100 
 ```
 
 ```{r}
@@ -341,9 +338,9 @@ HRmean = rep(76, 24) + (L_tilde[, 1] * mean(RiL1[3,]) + L_tilde[, 2] * mean(RiL2
 ```{r}
 # Plot effect of time components on DBP 
 dataLeffects = data.frame(DBPmean = rep(DBPmean, 6), 
-                          value = c(DBPmean + L_tilde[, 1] * 3*12, DBPmean - L_tilde[, 1] * 3*12, 
-                                    DBPmean + L_tilde[, 2] *1.1*12, DBPmean - L_tilde[, 2] * 1.1*12, 
-                                    DBPmean + L_tilde[, 3] * 0.9*12, DBPmean - L_tilde[, 3] * 0.9*12),
+                          value = c(DBPmean + L_tilde[, 1] * 2.9*12, DBPmean - L_tilde[, 1] * 2.9*12, 
+                                    DBPmean + L_tilde[, 2] *1.3*12, DBPmean - L_tilde[, 2] * 1.3*12, 
+                                    DBPmean + L_tilde[, 3] * 1.0*12, DBPmean - L_tilde[, 3] * 1.0*12),
                           component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
                           sign = rep(rep(c("positive", "negative"), each = 24), 3),
                           hour = rep(12:35, 6))
@@ -363,8 +360,8 @@ pdataL
 # Plot effect of time components on SBP 
 dataLeffects = data.frame(SBPmean = rep(SBPmean, 6), 
                           value = c(SBPmean + L_tilde[, 1] * 3.1*18, SBPmean - L_tilde[, 1] * 3.1*18, 
-                                    SBPmean + L_tilde[, 2] * 1.2*18, SBPmean - L_tilde[, 2] * 1.2*18, 
-                                    SBPmean + L_tilde[, 3] * 1*18, SBPmean - L_tilde[, 3] * 1*18),
+                                    SBPmean + L_tilde[, 2] * 1.3*18, SBPmean - L_tilde[, 2] * 1.3*18, 
+                                    SBPmean + L_tilde[, 3] * 1.0*18, SBPmean - L_tilde[, 3] * 1.0*18),
                           component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
                           sign = rep(rep(c("positive", "negative"), each = 24), 3),
                           hour = rep(12:35, 6))
@@ -381,8 +378,8 @@ pdataL
 ```{r}
 # Plot effect of time components on HR
 dataLeffects = data.frame(HRmean = rep(HRmean, 6), 
-                          value = c(HRmean + L_tilde[, 1] * 4*13, HRmean - L_tilde[, 1] *4*13, 
-                                    HRmean + L_tilde[, 2] * 1.3*13, HRmean - L_tilde[, 2] * 1.3*13, 
+                          value = c(HRmean + L_tilde[, 1] * 3.6*13, HRmean - L_tilde[, 1] *3.6*13, 
+                                    HRmean + L_tilde[, 2] * 1.4*13, HRmean - L_tilde[, 2] * 1.4*13, 
                                     HRmean + L_tilde[, 3] * 1.1*13, HRmean - L_tilde[, 3] * 1.1*13),
                           component = c(rep("1st", 24 * 2), rep("2nd", 24 * 2), rep("3rd", 24 * 2)),
                           sign = rep(rep(c("positive", "negative"), each = 24), 3),
@@ -422,50 +419,5 @@ for (i in 170:175){
 }
 ```
 
-# Comparison with FPCA (Example)
-```{r, warning=FALSE}
-library(refund)
-h1 <- rTensor::unfold(synthetic_dat[,1,], row_idx = 2, col_idx = 1)@data
-outfpca1 <- refund::fpca.sc(Y = as.matrix(h1), npc = 3, center=FALSE)
 
-res <-  mglram(tnsr = synthetic_dat@data, ranks = c(6, 3), init=0, D = D2,
-                 lambda = 12, max_iter = 500, tol = 1e-5, L0 = NULL)
-
-for (i in c(111)){
-df <- data.frame(cbind(c(1:24), (res$est[,1,i])*12+70, (outfpca1$Yhat[i,])*12+70))
-colnames(df) <- c("hour", "my", "fpca")
-original <- (synthetic_dat@data[ , 1, i])*12+70
-org_df <- data.frame(cbind(c(1:24), original))
-colnames(org_df) <- c("hour", "original")
-
-df_long <- pivot_longer(df, cols=c("my", "fpca"), names_to = "method")
-
-custom_colors <- c("blue","red")
-names(custom_colors) <- c("my", "fpca")
-
-p <- ggplot() +
-  geom_point(data = org_df, aes(x = hour, y = original), color = "black") +  # Original data
-  geom_line(data = df_long, aes(x = hour, y =value, color = method)) +
-  labs(title = "",
-       x = "HOUR", y = "DBP") +
-  scale_color_manual(values = custom_colors,
-                     labels = c("my" = "Smooth Tensor Decomposition", "fPCA" = "Functional Principal Component Analysis"),
-                    name =  "Method") +
-  theme(legend.position = c(1, 1),        
-    legend.justification = c(1, 1), 
-    panel.grid = element_blank(),             
-    panel.background = element_blank(),       
-    plot.background = element_blank(),        
-    panel.border = element_rect(color = "black", fill = NA, linewidth = 0.8),  # add border rectangle
-    axis.line = element_blank(),
-    legend.background = element_blank(),  # removes the outer background & border
-    legend.key = element_blank(),
-    axis.text = element_text(size = 16),
-    axis.title = element_text(size = 16),
-    legend.text = element_text(size = 14,hjust=0),
-    legend.title = element_text(size = 14)
-    )
-print(p)
-}
-```
 
