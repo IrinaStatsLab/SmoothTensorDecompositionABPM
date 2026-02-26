@@ -21,6 +21,10 @@ This folder includes code for reproducing the results in Section 4 of the paper.
 - `4f_CP_Analysis.R`: instability of CP decomposition in ABPM data
 - `4g_MFPCA_Analysis.R`: MFPCA analysis for ABPM data 
 
+## Multi-site Air Quality Application
+
+This folder includes code for reproducing the results in Appendix E of the paper. The data used in this section is publicly available at [https://doi.org/10.24432/C5RK5G](https://doi.org/10.24432/C5RK5G).
+
 ## Simulation Studies
 
 This folder includes code for reproducing the results in Section 3 of the paper. 
