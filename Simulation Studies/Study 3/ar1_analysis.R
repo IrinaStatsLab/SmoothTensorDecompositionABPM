@@ -10,9 +10,9 @@ panel_labels <- c(rep("Missingness", 1))
 
 ## flexible ranks
 
-load("./no_ar1_large_full.Rda")
+load("./hblock_new/ar1_large_full.Rda")
 
-full_results_list <- list(m20 = no_ar1_large_full)
+full_results_list <- list(m20 = ar1_large_full)
 
 oracle_M_full <- list()
 kcv_M_full <- list()
@@ -50,8 +50,8 @@ for (set in Setting) {
     kcv_rank_full[[set]][i] <- dat$kcv_para[1]
     kcv_hblock_M_full[[set]][i] <- dat$kcv_hblock_loss
     kcv_hblock_rank_full[[set]][i] <- dat$kcv_hblock_para[1]
-    fpca_M_full[[set]][i] <- dat$fpca_loss
-    fpca_rank_full[[set]][i] <- dat$fpca_rank
+    fpca_M_full[[set]][i] <- dat$fpca_cf_loss
+    fpca_rank_full[[set]][i] <- dat$fpca_cf_rank
     cp_M_full[[set]][i] <- dat$cp_loss
     cp_rank_full[[set]][i] <- dat$cp_rank
     cp_no_M_full[[set]][i] <- dat$cp_no_loss
@@ -88,7 +88,6 @@ panel_limits <- data %>%
   summarise(ymin = min(y_value, na.rm = TRUE),
             ymax = max(y_value, na.rm = TRUE))
 
-
 data <- data %>%
   left_join(panel_limits, by = "panel")
 
@@ -108,7 +107,7 @@ ggplot(data, aes(x = Method, y = y_value, fill = Method)) +
     legend.text = element_text(size = 15),
     legend.title = element_text(size = 15)
   )
-#ggsave("./full_lossM_boxplot_complete.pdf", width=12, height=10)
+#ggsave("./full_ar1_lossM_boxplot_complete.pdf", width=12, height=10)
 
 data_subset <- data.frame(data_full) 
 data_subset <- subset(data_subset, Method %in% c("Oracle", "SmoothHOOI","hblock", "FPCA",  "MFPCA", "CP_Smooth"))
@@ -140,9 +139,9 @@ ggplot(data_subset, aes(x = Method, y = y_value, fill = Method)) +
     legend.text = element_text(size = 15),
     legend.title = element_text(size = 15)
   )
-#ggsave("./full_no_ar1_lossM_noOrtho.pdf", width=8, height=6)
+#ggsave("./full_ar1_lossM_noOrtho_updated.pdf", width=8, height=6)
 
-# table() rank for all the methods in c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth")
+# table() rank for all the methods in c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortho", "CP")
 rank_tables <- list()
 for (method in c("oracle_rank_full", "kcv_rank_full","kcv_hblock_rank_full", "fpca_rank_full", "mfpca_rank_full", "cp_rank_full", "cp_no_rank_full")) {
   rank_tables[[method]] <- list()
@@ -183,6 +182,7 @@ rank_data_list_full$method <- factor(rank_data_list_full$method, levels=c("Smoot
 rank_data_list_full$Rank <- factor(rank_data_list_full$Rank,
                                    levels = c("2","3","4"))
 
+
 rank_data_list_full
 
 sum(rank_data_list_full$Count[which(rank_data_list_full$method=="SmoothHOOI" & rank_data_list_full$Rank=="3")])
@@ -207,6 +207,7 @@ custom_strips <- strip_nested(
 ggplot(rank_data_list_full, aes(x = method, y = Count, fill = Rank)) +
   scale_fill_manual(values = custom_colors, name = "r1 values") +
   geom_bar(stat = "identity", position = position_stack(reverse = TRUE)) + 
+  #facet_nested(rows = NULL, cols = vars(panel, factor(method)), scales = "free_x", strip = custom_strips, space="free_x") +
   labs(x = "Method", y = "Counts", fill = "r1 values", 
        title = "") +
   theme_minimal() +
@@ -219,7 +220,5 @@ ggplot(rank_data_list_full, aes(x = method, y = Count, fill = Rank)) +
         legend.title = element_text(size = 12)) +
   guides(fill = guide_legend(reverse = FALSE)) 
 
-#ggsave("./rankselect_no_ar1.pdf", dpi=600, width = 5, height=5)
-
-
+#ggsave("./rankselect_ar1_updated.pdf", dpi=600, width = 5, height=5)
 

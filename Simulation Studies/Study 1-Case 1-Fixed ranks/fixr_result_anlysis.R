@@ -2,14 +2,15 @@ library(ggplot2)
 library(ggh4x)
 library(dplyr)
 
-Setting <- c("m0", "m10", "m20", "m50", "struc", "p50", "p500", "n0", "n01", "n05", "n15", "n2")
-Setting_codes <- c("m0", "m10", "m20", "m50", "struc", "p50", "m20", "p500", "n0", "n01","n05", "m20", "n15", "n2")
+Setting <- c("m0", "m10", "m20", "m50", "struc", "p50", "p500", "n0", "n05", "n15", "n2")
+Setting_codes <- c("m0", "m10", "m20", "m50", "struc", "p50", "m20", "p500", "n0", "n05", "m20", "n15", "n2")
 Setting_labels <- c("0%", "10%", "20%", "50%", "structured", 
                     "n=50", "n=200", "n=500", 
-                    "Noise: 0", "Noise: 0.1", "Noise: 0.5",
+                    "Noise: 0", "Noise: 0.5",
                     "Noise: 1", "Noise: 1.5", "Noise: 2")
 
-panel_labels <- c(rep("Missingness", 5), rep("Sample size", 3), rep("Noise level", 6))
+panel_labels <- c(rep("Missingness", 5), rep("Sample size", 3), rep("Noise level", 5))
+
 
 rda_files <- list.files("./fixr_new", pattern = "\\.Rda$", full.names = TRUE)
 for (f in rda_files) {
@@ -20,7 +21,7 @@ fixr_results_list <- list(m0 = fixr_miss0, m10 = fixr_miss10,
                           m20 = fixr_miss20, m50 = fixr_miss50,
                           struc = fixr_missstruc,
                           p50 = fixr_p50, p500 = fixr_p500,
-                          n0 = fixr_noise0, n01 = fixr_noise01,
+                          n0 = fixr_noise0, 
                           n05 = fixr_noise05, n15 = fixr_noise15,
                           n2 = fixr_noise2)
 
@@ -30,14 +31,20 @@ kcv_M_fixr <- list()
 kcv_L_fixr <- list()
 fpca_M_fixr <- list()
 fpca_L_fixr <- list()
-cp3_M_fixr <- list()
-cp3_L_fixr <- list()
-cp6_M_fixr <- list()
-cp6_L_fixr <- list()
-cp3_no_M_fixr <- list()
-cp3_no_L_fixr <- list()
-cp6_no_M_fixr <- list()
-cp6_no_L_fixr <- list()
+cp3_ortsmo_M_fixr <- list()
+cp3_ortsmo_L_fixr <- list()
+cp6_ortsmo_M_fixr <- list()
+cp6_ortsmo_L_fixr <- list()
+cp3_smooth_M_fixr <- list()
+cp3_smooth_L_fixr <- list()
+cp6_smooth_M_fixr <- list()
+cp6_smooth_L_fixr <- list()
+pf3_smooth_M_fixr <- list()
+pf3_smooth_L_fixr <- list()
+pf3_ortsmo_M_fixr <- list()
+pf3_ortsmo_L_fixr <- list()
+ecp_ortsmo_M_fixr <- list()
+ecp_ortsmo_L_fixr <- list()
 mfpca_M_fixr <- list()
 mfpca_L_fixr <- list()
 
@@ -46,10 +53,13 @@ for (set in Setting) {
   oracle_M_fixr[[set]] <- oracle_L_fixr[[set]] <- 
     kcv_M_fixr[[set]] <- kcv_L_fixr[[set]] <- 
     fpca_M_fixr[[set]] <- fpca_L_fixr[[set]]  <- 
-    cp3_M_fixr[[set]] <- cp3_L_fixr[[set]]  <- 
-    cp6_M_fixr[[set]] <- cp6_L_fixr[[set]]  <-
-    cp3_no_M_fixr[[set]] <- cp3_no_L_fixr[[set]]  <- 
-    cp6_no_M_fixr[[set]] <- cp6_no_L_fixr[[set]]  <-
+    cp3_ortsmo_M_fixr[[set]] <- cp3_ortsmo_L_fixr[[set]]  <- 
+    cp6_ortsmo_M_fixr[[set]] <- cp6_ortsmo_L_fixr[[set]]  <-
+    cp3_smooth_M_fixr[[set]] <- cp3_smooth_L_fixr[[set]]  <- 
+    cp6_smooth_M_fixr[[set]] <- cp6_smooth_L_fixr[[set]]  <-
+    pf3_smooth_M_fixr[[set]] <- pf3_smooth_L_fixr[[set]]  <-
+    pf3_ortsmo_M_fixr[[set]] <- pf3_ortsmo_L_fixr[[set]]  <-
+    ecp_ortsmo_M_fixr[[set]] <- ecp_ortsmo_L_fixr[[set]]  <-
     mfpca_M_fixr[[set]] <- mfpca_L_fixr[[set]]  <- 
     rep(NA, 100)
   
@@ -62,21 +72,30 @@ for (set in Setting) {
     kcv_L_fixr[[set]][i] <- dat$kcv_loss$loss_L
     fpca_M_fixr[[set]][i] <- dat$fpca_loss$loss_M
     fpca_L_fixr[[set]][i] <- dat$fpca_loss$loss_L
-    cp3_M_fixr[[set]][i] <- dat$cp3_loss$loss_M
-    cp3_L_fixr[[set]][i] <- dat$cp3_loss$loss_L
-    cp6_M_fixr[[set]][i] <- dat$cp6_loss$loss_M
-    cp6_L_fixr[[set]][i] <- dat$cp6_loss$loss_L
-    cp3_no_M_fixr[[set]][i] <- dat$cp3_no_loss$loss_M
-    cp3_no_L_fixr[[set]][i] <- dat$cp3_no_loss$loss_L
-    cp6_no_M_fixr[[set]][i] <- dat$cp6_no_loss$loss_M
-    cp6_no_L_fixr[[set]][i] <- dat$cp6_no_loss$loss_L
+    cp3_ortsmo_M_fixr[[set]][i] <- dat$cp3_ortsmo_loss$loss_M
+    cp3_ortsmo_L_fixr[[set]][i] <- dat$cp3_ortsmo_loss$loss_L
+    cp6_ortsmo_M_fixr[[set]][i] <- dat$cp6_ortsmo_loss$loss_M
+    cp6_ortsmo_L_fixr[[set]][i] <- dat$cp6_ortsmo_loss$loss_L
+    cp3_smooth_M_fixr[[set]][i] <- dat$cp3_smooth_loss$loss_M
+    cp3_smooth_L_fixr[[set]][i] <- dat$cp3_smooth_loss$loss_L
+    cp6_smooth_M_fixr[[set]][i] <- dat$cp6_smooth_loss$loss_M
+    cp6_smooth_L_fixr[[set]][i] <- dat$cp6_smooth_loss$loss_L
+    pf3_smooth_M_fixr[[set]][i] <- dat$pf3_smooth_loss$loss_M
+    pf3_smooth_L_fixr[[set]][i] <- dat$pf3_smooth_loss$loss_L
+    pf3_ortsmo_M_fixr[[set]][i] <- dat$pf3_ortsmo_loss$loss_M
+    pf3_ortsmo_L_fixr[[set]][i] <- dat$pf3_ortsmo_loss$loss_L
+    ecp_ortsmo_M_fixr[[set]][i] <- dat$ecp_ortsmo_loss$loss_M
+    ecp_ortsmo_L_fixr[[set]][i] <- dat$ecp_ortsmo_loss$loss_L
     mfpca_M_fixr[[set]][i] <- dat$mfpca_loss$loss_M
     mfpca_L_fixr[[set]][i] <- dat$mfpca_loss$loss_L
     
   }
 }
 
-methods_fixr <- list(Oracle = oracle_M_fixr, SmoothHOOI = kcv_M_fixr, FPCA = fpca_M_fixr, CP3_Ortsmo = cp3_M_fixr, CP6_Ortsmo = cp6_M_fixr, CP3_Smooth = cp3_no_M_fixr, CP6_Smooth = cp6_no_M_fixr, MFPCA = mfpca_M_fixr)
+methods_fixr <- list(Oracle = oracle_M_fixr, SmoothHOOI = kcv_M_fixr, FPCA = fpca_M_fixr, 
+                     CP3_Ortsmo = cp3_ortsmo_M_fixr, CP6_Ortsmo = cp6_ortsmo_M_fixr, CP3_Smooth = cp3_smooth_M_fixr, CP6_Smooth = cp6_smooth_M_fixr, 
+                     PARAFAC2_Smooth = pf3_smooth_M_fixr, SCA_IND_Smooth=pf3_ortsmo_M_fixr, SCA_ECP_Smooth=ecp_ortsmo_M_fixr, 
+                     MFPCA = mfpca_M_fixr)
 
 data_list_fixr <- list()
 
@@ -95,8 +114,8 @@ data_fixr <- do.call(rbind, data_list_fixr)
 
 data <- data.frame(data_fixr)
 
-data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth"))
-data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth", "PARAFAC2_Smooth","SCA_IND_Smooth","SCA_ECP_Smooth"))
+data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data$panel <- factor(data$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 
@@ -111,9 +130,10 @@ data <- data %>%
 
 ggplot(data[which(data$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, fill = method)) +
   geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.7, outlier.size = 0.5) +
-  geom_blank(aes(y = ymin)) +
-  geom_blank(aes(y = ymax)) +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
+  # geom_blank(aes(y = ymin)) +
+  # geom_blank(aes(y = ymax)) +
+  # facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none") +
   guides(fill = guide_legend(byrow = TRUE, nrow = 1)) +
   labs(y = "Loss of M", fill = "Method", title = "") +
   theme(
@@ -127,9 +147,9 @@ ggplot(data[which(data$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, f
     legend.text = element_text(size = 13),
     legend.title = element_text(size = 13)
   )
-#ggsave("./fixr_lossM_boxplot_complete.pdf", width=12, height=10)
+#ggsave("./fixr_lossM_boxplot_complete_updated.pdf", width=18, height=12)
 
-lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Ortsmo = cp3_L_fixr, CP6_Ortsmo = cp6_L_fixr, CP3_Smooth = cp3_no_L_fixr, CP6_Smooth = cp6_no_L_fixr)
+lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Ortsmo = cp3_ortsmo_L_fixr, CP6_Ortsmo = cp6_ortsmo_L_fixr, CP3_Smooth = cp3_smooth_L_fixr, CP6_Smooth = cp6_smooth_L_fixr, PARAFAC2_Smooth = pf3_smooth_L_fixr, SCA_IND_Smooth=pf3_ortsmo_L_fixr, SCA_ECP_Smooth=ecp_ortsmo_L_fixr)
 
 data_list_lossL <- list()
 
@@ -146,8 +166,8 @@ for (method in names(lossL)) {
 
 data_lossL <- do.call(rbind, data_list_lossL)
 
-data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth"))
-data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Ortsmo", "CP6_Ortsmo", "CP3_Smooth", "CP6_Smooth","PARAFAC2_Smooth","SCA_IND_Smooth","SCA_ECP_Smooth"))
+data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 # Plot of losses of L
@@ -163,22 +183,16 @@ ggplot(data_lossL[which(data_lossL$Setting!="Noise: 0.1"),], aes(x = Setting, y 
         legend.text = element_text(size = 15),       
         legend.title = element_text(size = 15),
         strip.placement = "outside") +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") 
+  #facet_nested(~panel, scales = "free", space ="free_x", independent = "y") 
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none")
 
-#ggsave("./fixr_lossL_boxplot_complete.pdf", width=15, height=6)
-
-missing_rate_vec_fixr <- c()
-for (i in 1:100){
-  missing_rate_vec_fixr[i] <- fixr_missstruc[[i]]$missing_rate
-}
-summary(missing_rate_vec_fixr)
-
+#ggsave("./fixr_lossL_boxplot_complete_updated.pdf", width=20, height=10)
 
 data_subset <- data.frame(data_fixr) 
 data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Smooth", "CP6_Smooth"))
 
 data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP3_Smooth", "CP6_Smooth"))
-data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_subset$panel <- factor(data_subset$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 panel_limits <- data_subset %>%
@@ -194,7 +208,10 @@ ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, 
   geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.7, outlier.size = 0.5) +
   geom_blank(aes(y = ymin)) +
   geom_blank(aes(y = ymax)) +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
+  # facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
+  scale_y_continuous(breaks = seq(0, 0.125, by = 0.025)) +
+  coord_cartesian(ylim = c(0, 0.135)) +
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none") +
   guides(fill = guide_legend(byrow = TRUE, nrow = 1)) +
   labs(y = "Loss of M", fill = "Method", title = "") +
   theme(
@@ -208,9 +225,9 @@ ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, 
     legend.text = element_text(size = 16),
     legend.title = element_text(size = 16)
   )
-#ggsave("./fixr_lossM_boxplot_noOrtho.pdf", width=12, height=8)
+#ggsave("./fixr_lossM_boxplot_subset_updated.pdf", width=12, height=8)
 
-lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Smooth = cp3_no_L_fixr, CP6_Smooth = cp6_no_L_fixr)
+lossL <- list(Oracle = oracle_L_fixr, SmoothHOOI = kcv_L_fixr, FPCA = fpca_L_fixr, MFPCA = mfpca_L_fixr, CP3_Smooth = cp3_smooth_L_fixr, CP6_Smooth = cp6_smooth_L_fixr)
 
 data_list_lossL <- list()
 
@@ -228,7 +245,7 @@ for (method in names(lossL)) {
 data_lossL <- do.call(rbind, data_list_lossL)
 
 data_lossL$method <- factor(data_lossL$method, levels=c("Oracle", "SmoothHOOI","FPCA","MFPCA", "CP3_Smooth", "CP6_Smooth"))
-data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 
@@ -245,9 +262,9 @@ ggplot(data_lossL[which(data_lossL$Setting!="Noise: 0.1"),], aes(x = Setting, y 
         legend.text = element_text(size = 16),       
         legend.title = element_text(size = 16),
         strip.placement = "outside") +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") 
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none") 
 
-#ggsave("./fixr_lossL_boxplot_noOrtho.pdf", width=12, height=6)
+#ggsave("./fixr_lossL_boxplot_subset_updated.pdf", width=12, height=6)
 
 cp3_ortho_L1_fixr <- list()
 cp3_ortho_L2_fixr <- list()
@@ -281,23 +298,23 @@ for (set in Setting) {
   
   for (i in 1:100) {
     dat <- fixr_results_list[[set]][[i]]
-    cp3_ortho_L1_fixr[[set]][i] <- dat$cp3_loss1$loss_L
-    cp3_ortho_L2_fixr[[set]][i] <- dat$cp3_loss2$loss_L
-    cp3_ortho_L3_fixr[[set]][i] <- dat$cp3_loss3$loss_L
-    cp6_ortho_L1_fixr[[set]][i] <- dat$cp6_loss1$loss_L
-    cp6_ortho_L2_fixr[[set]][i] <- dat$cp6_loss2$loss_L
-    cp6_ortho_L3_fixr[[set]][i] <- dat$cp6_loss3$loss_L
-    cp3_ortho_L_fixr[[set]][i] <- dat$cp3_loss$loss_L
-    cp6_ortho_L_fixr[[set]][i] <- dat$cp6_loss$loss_L
+    cp3_ortho_L1_fixr[[set]][i] <- dat$cp3_ortsmo_loss1$loss_L
+    cp3_ortho_L2_fixr[[set]][i] <- dat$cp3_ortsmo_loss2$loss_L
+    cp3_ortho_L3_fixr[[set]][i] <- dat$cp3_ortsmo_loss3$loss_L
+    cp6_ortho_L1_fixr[[set]][i] <- dat$cp6_ortsmo_loss1$loss_L
+    cp6_ortho_L2_fixr[[set]][i] <- dat$cp6_ortsmo_loss2$loss_L
+    cp6_ortho_L3_fixr[[set]][i] <- dat$cp6_ortsmo_loss3$loss_L
+    cp3_ortho_L_fixr[[set]][i] <- dat$cp3_ortsmo_loss$loss_L
+    cp6_ortho_L_fixr[[set]][i] <- dat$cp6_ortsmo_loss$loss_L
     
-    cp3_L1_fixr[[set]][i] <- dat$cp3_no_loss1$loss_L
-    cp3_L2_fixr[[set]][i] <- dat$cp3_no_loss2$loss_L
-    cp3_L3_fixr[[set]][i] <- dat$cp3_no_loss3$loss_L
-    cp6_L1_fixr[[set]][i] <- dat$cp6_no_loss1$loss_L
-    cp6_L2_fixr[[set]][i] <- dat$cp6_no_loss2$loss_L
-    cp6_L3_fixr[[set]][i] <- dat$cp6_no_loss3$loss_L
-    cp3_L_fixr[[set]][i] <- dat$cp3_no_loss$loss_L
-    cp6_L_fixr[[set]][i] <- dat$cp6_no_loss$loss_L
+    cp3_L1_fixr[[set]][i] <- dat$cp3_smooth_loss1$loss_L
+    cp3_L2_fixr[[set]][i] <- dat$cp3_smooth_loss2$loss_L
+    cp3_L3_fixr[[set]][i] <- dat$cp3_smooth_loss3$loss_L
+    cp6_L1_fixr[[set]][i] <- dat$cp6_smooth_loss1$loss_L
+    cp6_L2_fixr[[set]][i] <- dat$cp6_smooth_loss2$loss_L
+    cp6_L3_fixr[[set]][i] <- dat$cp6_smooth_loss3$loss_L
+    cp3_L_fixr[[set]][i] <- dat$cp3_smooth_loss$loss_L
+    cp6_L_fixr[[set]][i] <- dat$cp6_smooth_loss$loss_L
     
   }
 }
@@ -323,7 +340,7 @@ data_lossL <- do.call(rbind, data_list_lossL)
 
 data_lossL$method <- factor(data_lossL$method, levels=c("CP3_Ortho_L1", "Cp3_Ortho_L2", "CP3_Ortho_L3",
                                                         "CP3_L1", "CP3_L2", "CP3_L3","CP3_Ortho", "CP3"))
-data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 lossL <- list(
@@ -351,7 +368,7 @@ for (method in names(lossL)) {
 }
 data_lossL <- do.call(rbind, data_list_lossL)
 
-data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_lossL$Setting <- factor(data_lossL$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_lossL$panel <- factor(data_lossL$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 data_lossL$methodpanel  <- ifelse(grepl("Ort", data_lossL$method), "Ortsmo", "Smooth")
@@ -374,39 +391,6 @@ my_colors <- c(
   
 )
 
-library(scales)
-
-# Plot for CP3
-ggplot(data_lossL[which(data_lossL$methodpanel=="Smooth" & data_lossL$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, fill = method)) +
-  geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.8, outlier.size = 0.5) +
-  
-  # Use the manual gradient colors defined above
-  scale_fill_manual(values = my_colors) +
-  
-  facet_nested(~ panel + Lpanel, scales = "free", space = "free_x") +
-  
-  labs(y = "Loss of L", fill = "Method") +
-  theme_bw() + 
-  theme(legend.position = "bottom",
-        axis.text.x = element_text(angle = 30, hjust = 1, size=12),
-        #units="px"plot.title = element_text(hjust=0.5, size=15),
-        axis.title = element_text(hjust=0.5, size=15),
-        axis.text.y = element_text(hjust=0.5, size=12),
-        strip.text = element_text(size = 15),
-        legend.text = element_text(size = 15),       
-        legend.title = element_text(size = 15),
-        strip.placement = "outside",
-        panel.grid.minor = element_blank(),
-        panel.grid.major = element_blank(),
-        panel.background = element_blank(),
-        strip.background = element_rect(color = NA)) 
-#ggsave("./CP3_singleL_vs_entireL.pdf", width=15, height=6)
-
-library(ggplot2)
-library(ggh4x)
-library(scales)
-
-# Plot for CP3
 ggplot(data_lossL[which(data_lossL$methodpanel=="Ortsmo"& data_lossL$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, fill = method)) +
   geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.8, outlier.size = 0.5) +
   
@@ -433,3 +417,14 @@ ggplot(data_lossL[which(data_lossL$methodpanel=="Ortsmo"& data_lossL$Setting!="N
         panel.background = element_blank(),
         strip.background = element_rect(color = NA)) 
 #ggsave("./CP3Ortho_singleL_vs_entireL.pdf", width=15, height=5)
+
+
+missing_rate_vec_fixr <- c()
+for (i in 1:100){
+  missing_rate_vec_fixr[i] <- fixr_missstruc[[i]]$missing_rate
+}
+summary(missing_rate_vec_fixr)
+
+
+
+

@@ -6,6 +6,8 @@ library(rTensor)
 library(MASS)
 library(refund)
 library(SmoothHOOI)
+library(MFPCA)
+library(multiway)
 
 source("./fpca_run.R") # script for running univariate FPCA
 source("./cp_run.R")   # script for running CP decomposition with imputation and smoothness
@@ -34,15 +36,15 @@ Ldense_svd <- svd(Ldense_init)
 Ldense <- Ldense_svd$u %*% t(Ldense_svd$v)
 
 
-error_sd <- stats::sd(E, na.rm=T)
+# error_sd <- stats::sd(E, na.rm=T)
 
 rank_grid <- as.matrix(expand.grid(r1<-seq(2,4,by=1), r2<-seq(2,4,by=1)))
-lambda_seq <- seq(0,500,by=50)
+lambda_seq <- seq(50,500,by=50)
 
 set.seed(36612111)
 
-ar1_large_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway","funData","MFPCA","SmoothHOOI")) %dorng%{
-  sim_data <- sim_data4(L=Ldense, b=20, r2=3, p=30, pattern="random", percent=0.2, phi=0.5, ar1_noise_sd = 0.01)
+no_ar1_large_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway","funData","MFPCA","SmoothHOOI")) %dorng%{
+  sim_data <- sim_data4(L=Ldense, b=20, r2=3, p=30, pattern="random", percent=0.2, phi=0, ar1_noise_sd = 0.01)
   
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
@@ -54,9 +56,9 @@ ar1_large_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","mult
   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
+  # oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
   
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data)
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
   
   ## 10-fold cross-validation
   kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
@@ -65,9 +67,9 @@ ar1_large_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","mult
   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
+  # kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
   
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data)
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
   
   
   ## 10-fold h cross-validation
@@ -77,49 +79,50 @@ ar1_large_full <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","mult
   kcv_hblock_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_hblock_opt$opt_para[1:2]), lambda=as.numeric(kcv_hblock_opt$opt_para[3]),
                            L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
-  kcv_hblock_tilde <- MakeIdent(L=kcv_hblock_res$L, G=kcv_hblock_res$G, R=kcv_hblock_res$R)
+  # kcv_hblock_tilde <- MakeIdent(L=kcv_hblock_res$L, G=kcv_hblock_res$G, R=kcv_hblock_res$R)
   
-  kcv_hblock_loss <- loss(tnsr = kcv_hblock_res$est, smooth_tnsr=Msmooth@data)
+  kcv_hblock_loss <- loss(tnsr = kcv_hblock_res$est, true_tnsr=Msmooth@data)
   
-
+  
   ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
+  fpca_cf_res <- fpca_run(Mmiss,center=FALSE)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
+  fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+  
+  fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness and orthogonality
   cp_res <- cp_run(Mmiss@data, R_seq=seq(3,10,by=1), const=c("ortsmo", "uncons", "uncons"))
   
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
+  cp_loss <- loss(tnsr = cp_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness, no orthogonality
   cp_no_res <- cp_run(Mmiss@data, R_seq=seq(3,10,by=1), const=c("smooth", "uncons", "uncons"))
   
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
+  cp_no_loss <- loss(tnsr = cp_no_res$est, true_tnsr=Msmooth@data)
   
   ## MFPCA
   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(3,10,by=1))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
+  mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
   
   output <- list("oracle_loss"=oracle_loss$loss_M, "oracle_para"=oracle_opt$opt_para,
                  "kcv_loss"=kcv_loss$loss_M, "kcv_para"=kcv_opt$opt_para,
                  "kcv_hblock_loss"=kcv_hblock_loss$loss_M, "kcv_hblock_para"=kcv_hblock_opt$opt_para,
-                 "fpca_loss"=fpca_loss$loss_M, "fpca_rank"=ncol(fpca_res$Lfpca),
+                 "fpca_cf_loss"=fpca_cf_loss$loss_M, "fpca_cf_rank"=fpca_cf_res$min_col,
+                 "fpca_ct_loss"=fpca_ct_loss$loss_M, "fpca_ct_rank"=fpca_ct_res$min_col,
                  "cp_loss"=cp_loss$loss_M,"cp_rank"=cp_res$best_R,
                  "cp_no_loss"=cp_no_loss$loss_M, "cp_no_rank"=cp_no_res$best_R,
-                 "mfpca_loss"=mfpca_loss$loss_M, "mfpca_rank"=ncol(mfpca_res$Lmfpca)
+                 "mfpca_loss"=mfpca_loss$loss_M, "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M
   )
   output
 }
 
-save(ar1_large_full, file="./ar1_large_full.Rda")
+save(no_ar1_large_full, file="./hblock_new/no_ar1_large_full.Rda")
 
 
 stopCluster(cl)
-
-
-
-
-
 

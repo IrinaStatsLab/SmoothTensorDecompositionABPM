@@ -6,15 +6,19 @@ cp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")){
   nmiss_idx <- which(!is.na(tnsr_array))
   
   if (length(R_seq)==1){
-    start <- Sys.time()
     res <- multiway::parafac(X=tnsr_array, nfac=R_seq[1], const=const, output="best", verbose=FALSE)
-    end <- Sys.time()
-    exe_time <- end - start
     
     res_rescaled <- multiway::rescale(res, mode = "A", newscale = 1/sqrt(nrow(res$A)), absorb = "C")
     
     est <- fitted(res_rescaled)
     Lcp <- res_rescaled$A
+    
+    stopifnot(max(abs(colSums(res_rescaled$A^2) - 1)) < 1e-8)
+    
+    if (const[1] %in% c("ortsmo", "orsmpe")) {
+      gram <- crossprod(res_rescaled$A)
+      stopifnot(max(abs(gram - diag(ncol(gram)))) < 1e-6)
+    }
     
     ## order L
     norm_vec <- c()
@@ -29,8 +33,8 @@ cp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")){
     
     Lcp_ordered <- Lcp[, order(norm_vec, decreasing = TRUE)]
     
-    
-    out=list(est=est, Lcp=Lcp, Lcp_ordered=Lcp_ordered, time = exe_time)
+    out=list(est=est, Lcp=Lcp, Lcp_ordered=Lcp_ordered)
+    return(out)
     
   } else if (length(R_seq)>1){
     exp_var = c()
@@ -48,6 +52,7 @@ cp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")){
       
       res_rescaled_list[[i]] = res_rescaled_i
       exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr_array[nmiss_idx])^2)
+      #exp_var[i] <- 1 - sum((tnsr_array[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr_array[nmiss_idx]^2)
       est[[i]] <- est_i
       Lcp[[i]] <- Lcp_i
     }
@@ -68,7 +73,7 @@ cp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")){
       norm_vec[r] <- sum(ar^2) * sum(br^2) * sum(cr^2)
     }
     
-    best_Lcp_ordered <- best_Lcp[, order(norm_vec, decreasing = TRUE)]
+    best_Lcp_ordered <- best_Lcp[, order(norm_vec, decreasing = TRUE), drop = FALSE]
     
     out=list(best_R = best_R, est=best_est, Lcp=best_Lcp, Lcp_ordered = best_Lcp_ordered)
     

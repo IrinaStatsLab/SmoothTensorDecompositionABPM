@@ -6,10 +6,14 @@ library(rTensor)
 library(MASS)
 library(refund)
 library(SmoothHOOI)
+library(MFPCA)
+library(multiway)
 
 source("./fpca_run.R") # script for running univariate FPCA
 source("./cp_run.R")   # script for running CP decomposition with imputation and smoothness
 source("./mfpca_run.R") # script for running MFPCA
+source("./parafac2_run.R") # script for running PARAFAC2 (SCA-PF2 and SCA-IND)
+source("./sca_ecp_run.R") # script for running SCA-ECP
 
 ## Should run this on HPC 
 
@@ -30,7 +34,7 @@ set.seed(54321)
 
 fixr_p50 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway","funData","MFPCA","SmoothHOOI")) %dorng%{
   sim_data <- sim_data2(L = L_tilde, R= R_tilde, mean_G = mean_G, cov_G = cov_G, 
-            E = E, p=50, noise_level=1, pattern="random", percent=0.2)
+                        E = E, p=50, noise_level=1, pattern="random", percent=0.2)
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
@@ -43,7 +47,7 @@ fixr_p50 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway",
   
   oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
   
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data,
                       L = oracle_tilde$L_tilde, true_L = L_tilde)
   
   ## 10-fold cross-validation
@@ -55,95 +59,174 @@ fixr_p50 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway",
   
   kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
   
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data,
                    L = kcv_tilde$L_tilde, true_L = L_tilde)
   
   ## FPCA, fix number of principal components to 3
   fpca_res <- fpca_run(Mmiss, npc=3, center=FALSE)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data,
-                    L = fpca_res$Lfpca, true_L = L_tilde)
+  fpca_loss_list <- list() 
+  for (k in 1:length(fpca_res$Lfpca_list)){
+    Lfpca_k <- fpca_res$Lfpca_list[[k]]
+    fpca_loss_list[[k]] <- loss(tnsr = fpca_res$est, true_tnsr=Msmooth@data,
+                                L = Lfpca_k, true_L = L_tilde)
+  }
+  fpca_loss_unlist <- sapply(fpca_loss_list, unlist)            
+  fpca_loss_avg <- rowMeans(fpca_loss_unlist, na.rm = TRUE)
+  
+  fpca_loss <- as.list(fpca_loss_avg)
+  
+  ## FPCA, fix number of principal components to 3
+  fpca_ct_res <- fpca_run(Mmiss, npc=3, center=TRUE)
+  
+  fpca_ct_loss_list <- list() 
+  for (k in 1:length(fpca_ct_res$Lfpca_list)){
+    Lfpca_ct_k <- fpca_ct_res$Lfpca_list[[k]]
+    fpca_ct_loss_list[[k]] <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data,
+                                   L = Lfpca_ct_k, true_L = L_tilde)
+  }
+  fpca_ct_loss_unlist <- sapply(fpca_ct_loss_list, unlist)            
+  fpca_ct_loss_avg <- rowMeans(fpca_ct_loss_unlist, na.rm = TRUE)
+  
+  fpca_ct_loss <- as.list(fpca_ct_loss_avg)
   
   ## CP3 with imputation and smoothness and orthogonality
-  cp3_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
   
-  cp3_loss <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                  L = cp3_res$Lcp, true_L = L_tilde)
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                          L = cp3_ortsmo_res$Lcp, true_L = L_tilde)
   
-  cp3_loss1 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp3_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp3_ortsmo_loss1 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp3_loss2 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp3_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp3_ortsmo_loss2 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp3_loss3 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp3_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp3_ortsmo_loss3 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP6 with imputation and smoothness and orthogonality
-  cp6_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
   
-  Lcp6_top3 <- cp6_res$Lcp_ordered[,1:3]
+  Lcp6_ortsmo_top3 <- cp6_ortsmo_res$Lcp_ordered[,1:3]
   
-  cp6_loss <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                   L = Lcp6_top3, true_L = L_tilde)
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp6_ortsmo_top3, true_L = L_tilde)
   
-  cp6_loss1 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp6_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp6_ortsmo_loss1 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp6_loss2 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp6_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp6_ortsmo_loss2 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp6_loss3 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                   L =  as.matrix(cp6_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp6_ortsmo_loss3 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP3 with imputation and smoothness, no orthogonality 
-  cp3_no_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
   
-  Lcp_cp3_no_res <- qr.Q(qr(cp3_no_res$Lcp))
+  Lcp_cp3_smooth_res <- qr.Q(qr(cp3_smooth_res$Lcp))
   
-  cp3_no_loss <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                      L = Lcp_cp3_no_res, true_L = L_tilde)
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp_cp3_smooth_res, true_L = L_tilde)
   
-  cp3_no_loss1 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                      L =  as.matrix(cp3_no_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp3_smooth_loss1 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp3_no_loss2 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp3_no_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp3_smooth_loss2 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp3_no_loss3 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp3_no_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp3_smooth_loss3 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP6 with imputation and smoothness, no orthogonality
-  cp6_no_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
   
-  Lcp6_no_top3 <- cp6_no_res$Lcp_ordered[,1:3]
+  Lcp6_smooth_top3 <- cp6_smooth_res$Lcp_ordered[,1:3]
   
-  Lcp_cp6_no_res <- qr.Q(qr(Lcp6_no_top3))
+  Lcp_cp6_smooth_res <- qr.Q(qr(Lcp6_smooth_top3))
   
-  cp6_no_loss <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                      L = Lcp_cp6_no_res, true_L = L_tilde)
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp_cp6_smooth_res, true_L = L_tilde)
   
-  cp6_no_loss1 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                      L =  as.matrix(cp6_no_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp6_smooth_loss1 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp6_no_loss2 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                      L =  as.matrix(cp6_no_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp6_smooth_loss2 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp6_no_loss3 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                      L =  as.matrix(cp6_no_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp6_smooth_loss3 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=c(3))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data,
-                     L = mfpca_res$Lmfpca, true_L = L_tilde)
+  mfpca_loss_list <- list() 
+  for (k in 1:length(mfpca_res$Lmfpca_list)){
+    Lmfpca_k <- mfpca_res$Lmfpca_list[[k]]
+    mfpca_loss_list[[k]] <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data,
+                                 L = Lmfpca_k, true_L = L_tilde)
+  }
+  mfpca_loss_unlist <- sapply(mfpca_loss_list, unlist)            
+  mfpca_loss_avg <- rowMeans(mfpca_loss_unlist, na.rm = TRUE)
   
-  output <- list("oracle_loss"=oracle_loss, "kcv_loss"=kcv_loss, "fpca_loss"=fpca_loss,
-                 "cp3_loss"=cp3_loss, "cp3_loss1"=cp3_loss1, "cp3_loss2"=cp3_loss2, "cp3_loss3"=cp3_loss3, 
-                 "cp6_loss"=cp6_loss, "cp6_loss1"=cp6_loss1,"cp6_loss2"=cp6_loss2, "cp6_loss3"=cp6_loss3,
-                 "cp3_no_loss"=cp3_no_loss, "cp3_no_loss1"=cp3_no_loss1, "cp3_no_loss2"=cp3_no_loss2, "cp3_no_loss3"=cp3_no_loss3, 
-                 "cp6_no_loss"=cp6_no_loss, "cp6_no_loss1"=cp6_no_loss1, "cp6_no_loss2"=cp6_no_loss2,"cp6_no_loss3"=cp6_no_loss3,
-                 "mfpca_loss"=mfpca_loss)
+  mfpca_loss <- as.list(mfpca_loss_avg)
+  
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss_list <- list() 
+  for (k in 1:length(pf3_smooth_res$Lparafac2_list)){
+    Lpf3_smooth_k <- qr.Q(qr(pf3_smooth_res$Lparafac2_list[[k]]))
+    pf3_smooth_loss_list[[k]] <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data,
+                                      L = Lpf3_smooth_k, true_L = L_tilde)
+  }
+  pf3_smooth_loss_unlist <- sapply(pf3_smooth_loss_list, unlist)            
+  pf3_smooth_loss_avg <- rowMeans(pf3_smooth_loss_unlist, na.rm = TRUE)
+  
+  pf3_smooth_loss <- as.list(pf3_smooth_loss_avg)
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss_list <- list() 
+  for (k in 1:length(pf3_ortsmo_res$Lparafac2_list)){
+    Lpf3_ortsmo_k <- pf3_ortsmo_res$Lparafac2_list[[k]]
+    pf3_ortsmo_loss_list[[k]] <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                                      L = Lpf3_ortsmo_k, true_L = L_tilde)
+  }
+  pf3_ortsmo_loss_unlist <- sapply(pf3_ortsmo_loss_list, unlist)            
+  pf3_ortsmo_loss_avg <- rowMeans(pf3_ortsmo_loss_unlist, na.rm = TRUE)
+  
+  pf3_ortsmo_loss <- as.list(pf3_ortsmo_loss_avg)
+  
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss_list <- list() 
+  for (k in 1:length(ecp_ortsmo_res$Lecp_list)){
+    Lecp_ortsmo_k <- ecp_ortsmo_res$Lecp_list[[k]]
+    ecp_ortsmo_loss_list[[k]] <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data,
+                                      L = Lecp_ortsmo_k, true_L = L_tilde)
+  }
+  ecp_ortsmo_loss_unlist <- sapply(ecp_ortsmo_loss_list, unlist)            
+  ecp_ortsmo_loss_avg <- rowMeans(ecp_ortsmo_loss_unlist, na.rm = TRUE)
+  
+  ecp_ortsmo_loss <- as.list(ecp_ortsmo_loss_avg)
+  
+  
+  output <- list("oracle_loss"=oracle_loss, "kcv_loss"=kcv_loss, 
+                 "fpca_loss"=fpca_loss, "fpca_loss_unlist"=fpca_loss_unlist,"fpca_ct_loss"=fpca_ct_loss, "fpca_ct_loss_unlist"=fpca_ct_loss_unlist,
+                 "cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp3_ortsmo_loss1"=cp3_ortsmo_loss1, "cp3_ortsmo_loss2"=cp3_ortsmo_loss2, "cp3_ortsmo_loss3"=cp3_ortsmo_loss3, 
+                 "cp6_ortsmo_loss"=cp6_ortsmo_loss, "cp6_ortsmo_loss1"=cp6_ortsmo_loss1,"cp6_ortsmo_loss2"=cp6_ortsmo_loss2, "cp6_ortsmo_loss3"=cp6_ortsmo_loss3,
+                 "cp3_smooth_loss"=cp3_smooth_loss, "cp3_smooth_loss1"=cp3_smooth_loss1, "cp3_smooth_loss2"=cp3_smooth_loss2, "cp3_smooth_loss3"=cp3_smooth_loss3, 
+                 "cp6_smooth_loss"=cp6_smooth_loss, "cp6_smooth_loss1"=cp6_smooth_loss1, "cp6_smooth_loss2"=cp6_smooth_loss2,"cp6_smooth_loss3"=cp6_smooth_loss3,
+                 "mfpca_loss"=mfpca_loss,
+                 "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss)
   output
 }
 
@@ -167,7 +250,7 @@ fixr_p500 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway"
   
   oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
   
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data,
                       L = oracle_tilde$L_tilde, true_L = L_tilde)
   
   ## 10-fold cross-validation
@@ -179,95 +262,177 @@ fixr_p500 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway"
   
   kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
   
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data,
                    L = kcv_tilde$L_tilde, true_L = L_tilde)
   
   ## FPCA, fix number of principal components to 3
   fpca_res <- fpca_run(Mmiss, npc=3, center=FALSE)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data,
-                    L = fpca_res$Lfpca, true_L = L_tilde)
+  fpca_loss_list <- list() 
+  for (k in 1:length(fpca_res$Lfpca_list)){
+    Lfpca_k <- fpca_res$Lfpca_list[[k]]
+    fpca_loss_list[[k]] <- loss(tnsr = fpca_res$est, true_tnsr=Msmooth@data,
+                                L = Lfpca_k, true_L = L_tilde)
+  }
+  fpca_loss_unlist <- sapply(fpca_loss_list, unlist)            
+  fpca_loss_avg <- rowMeans(fpca_loss_unlist, na.rm = TRUE)
+  
+  fpca_loss <- as.list(fpca_loss_avg)
+  
+  ## FPCA, fix number of principal components to 3
+  fpca_ct_res <- fpca_run(Mmiss, npc=3, center=TRUE)
+  
+  fpca_ct_loss_list <- list() 
+  for (k in 1:length(fpca_ct_res$Lfpca_list)){
+    Lfpca_ct_k <- fpca_ct_res$Lfpca_list[[k]]
+    fpca_ct_loss_list[[k]] <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data,
+                                   L = Lfpca_ct_k, true_L = L_tilde)
+  }
+  fpca_ct_loss_unlist <- sapply(fpca_ct_loss_list, unlist)            
+  fpca_ct_loss_avg <- rowMeans(fpca_ct_loss_unlist, na.rm = TRUE)
+  
+  fpca_ct_loss <- as.list(fpca_ct_loss_avg)
   
   ## CP3 with imputation and smoothness and orthogonality
-  cp3_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
   
-  cp3_loss <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                   L = cp3_res$Lcp, true_L = L_tilde)
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                          L = cp3_ortsmo_res$Lcp, true_L = L_tilde)
   
-  cp3_loss1 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp3_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp3_ortsmo_loss1 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp3_loss2 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp3_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp3_ortsmo_loss2 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp3_loss3 <- loss(tnsr = cp3_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp3_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp3_ortsmo_loss3 <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_ortsmo_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP6 with imputation and smoothness and orthogonality
-  cp6_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
   
-  Lcp6_top3 <- cp6_res$Lcp_ordered[,1:3]
+  Lcp6_ortsmo_top3 <- cp6_ortsmo_res$Lcp_ordered[,1:3]
   
-  cp6_loss <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                   L = Lcp6_top3, true_L = L_tilde)
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp6_ortsmo_top3, true_L = L_tilde)
   
-  cp6_loss1 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp6_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp6_ortsmo_loss1 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp6_loss2 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp6_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp6_ortsmo_loss2 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp6_loss3 <- loss(tnsr = cp6_res$est, smooth_tnsr=Msmooth@data,
-                    L =  as.matrix(cp6_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp6_ortsmo_loss3 <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_ortsmo_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP3 with imputation and smoothness, no orthogonality 
-  cp3_no_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
   
-  Lcp_cp3_no_res <- qr.Q(qr(cp3_no_res$Lcp))
+  Lcp_cp3_smooth_res <- qr.Q(qr(cp3_smooth_res$Lcp))
   
-  cp3_no_loss <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                      L = Lcp_cp3_no_res, true_L = L_tilde)
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp_cp3_smooth_res, true_L = L_tilde)
   
-  cp3_no_loss1 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp3_no_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp3_smooth_loss1 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp3_no_loss2 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp3_no_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp3_smooth_loss2 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp3_no_loss3 <- loss(tnsr = cp3_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp3_no_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp3_smooth_loss3 <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp3_smooth_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
   
   ## CP6 with imputation and smoothness, no orthogonality
-  cp6_no_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
   
-  Lcp6_no_top3 <- cp6_no_res$Lcp_ordered[,1:3]
+  Lcp6_smooth_top3 <- cp6_smooth_res$Lcp_ordered[,1:3]
   
-  Lcp_cp6_no_res <- qr.Q(qr(Lcp6_no_top3))
+  Lcp_cp6_smooth_res <- qr.Q(qr(Lcp6_smooth_top3))
   
-  cp6_no_loss <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                      L = Lcp_cp6_no_res, true_L = L_tilde)
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                          L = Lcp_cp6_smooth_res, true_L = L_tilde)
   
-  cp6_no_loss1 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp6_no_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
+  cp6_smooth_loss1 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,1]), true_L =  as.matrix(L_tilde[,1]))
   
-  cp6_no_loss2 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp6_no_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
+  cp6_smooth_loss2 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,2]), true_L =  as.matrix(L_tilde[,2]))
   
-  cp6_no_loss3 <- loss(tnsr = cp6_no_res$est, smooth_tnsr=Msmooth@data,
-                       L =  as.matrix(cp6_no_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  cp6_smooth_loss3 <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data,
+                           L =  as.matrix(cp6_smooth_res$Lcp_ordered[,3]), true_L =  as.matrix(L_tilde[,3]))
+  
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=c(3))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data,
-                     L = mfpca_res$Lmfpca, true_L = L_tilde)
+  mfpca_loss_list <- list() 
+  for (k in 1:length(mfpca_res$Lmfpca_list)){
+    Lmfpca_k <- mfpca_res$Lmfpca_list[[k]]
+    mfpca_loss_list[[k]] <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data,
+                                 L = Lmfpca_k, true_L = L_tilde)
+  }
+  mfpca_loss_unlist <- sapply(mfpca_loss_list, unlist)            
+  mfpca_loss_avg <- rowMeans(mfpca_loss_unlist, na.rm = TRUE)
   
-  output <- list("oracle_loss"=oracle_loss, "kcv_loss"=kcv_loss, "fpca_loss"=fpca_loss,
-                 "cp3_loss"=cp3_loss, "cp3_loss1"=cp3_loss1, "cp3_loss2"=cp3_loss2, "cp3_loss3"=cp3_loss3, 
-                 "cp6_loss"=cp6_loss, "cp6_loss1"=cp6_loss1,"cp6_loss2"=cp6_loss2, "cp6_loss3"=cp6_loss3,
-                 "cp3_no_loss"=cp3_no_loss, "cp3_no_loss1"=cp3_no_loss1, "cp3_no_loss2"=cp3_no_loss2, "cp3_no_loss3"=cp3_no_loss3, 
-                 "cp6_no_loss"=cp6_no_loss, "cp6_no_loss1"=cp6_no_loss1, "cp6_no_loss2"=cp6_no_loss2,"cp6_no_loss3"=cp6_no_loss3,
-                 "mfpca_loss"=mfpca_loss)
+  mfpca_loss <- as.list(mfpca_loss_avg)
+  
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss_list <- list() 
+  for (k in 1:length(pf3_smooth_res$Lparafac2_list)){
+    Lpf3_smooth_k <- qr.Q(qr(pf3_smooth_res$Lparafac2_list[[k]]))
+    pf3_smooth_loss_list[[k]] <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data,
+                                      L = Lpf3_smooth_k, true_L = L_tilde)
+  }
+  pf3_smooth_loss_unlist <- sapply(pf3_smooth_loss_list, unlist)            
+  pf3_smooth_loss_avg <- rowMeans(pf3_smooth_loss_unlist, na.rm = TRUE)
+  
+  pf3_smooth_loss <- as.list(pf3_smooth_loss_avg)
+  
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss_list <- list() 
+  for (k in 1:length(pf3_ortsmo_res$Lparafac2_list)){
+    Lpf3_ortsmo_k <- pf3_ortsmo_res$Lparafac2_list[[k]]
+    pf3_ortsmo_loss_list[[k]] <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data,
+                                      L = Lpf3_ortsmo_k, true_L = L_tilde)
+  }
+  pf3_ortsmo_loss_unlist <- sapply(pf3_ortsmo_loss_list, unlist)            
+  pf3_ortsmo_loss_avg <- rowMeans(pf3_ortsmo_loss_unlist, na.rm = TRUE)
+  
+  pf3_ortsmo_loss <- as.list(pf3_ortsmo_loss_avg)
+  
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss_list <- list() 
+  for (k in 1:length(ecp_ortsmo_res$Lecp_list)){
+    Lecp_ortsmo_k <- ecp_ortsmo_res$Lecp_list[[k]]
+    ecp_ortsmo_loss_list[[k]] <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data,
+                                      L = Lecp_ortsmo_k, true_L = L_tilde)
+  }
+  ecp_ortsmo_loss_unlist <- sapply(ecp_ortsmo_loss_list, unlist)            
+  ecp_ortsmo_loss_avg <- rowMeans(ecp_ortsmo_loss_unlist, na.rm = TRUE)
+  
+  ecp_ortsmo_loss <- as.list(ecp_ortsmo_loss_avg)
+  
+  
+  
+  output <- list("oracle_loss"=oracle_loss, "kcv_loss"=kcv_loss, 
+                 "fpca_loss"=fpca_loss, "fpca_loss_unlist"=fpca_loss_unlist, "fpca_ct_loss"=fpca_ct_loss, "fpca_ct_loss_unlist"=fpca_ct_loss_unlist,
+                 "cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp3_ortsmo_loss1"=cp3_ortsmo_loss1, "cp3_ortsmo_loss2"=cp3_ortsmo_loss2, "cp3_ortsmo_loss3"=cp3_ortsmo_loss3, 
+                 "cp6_ortsmo_loss"=cp6_ortsmo_loss, "cp6_ortsmo_loss1"=cp6_ortsmo_loss1,"cp6_ortsmo_loss2"=cp6_ortsmo_loss2, "cp6_ortsmo_loss3"=cp6_ortsmo_loss3,
+                 "cp3_smooth_loss"=cp3_smooth_loss, "cp3_smooth_loss1"=cp3_smooth_loss1, "cp3_smooth_loss2"=cp3_smooth_loss2, "cp3_smooth_loss3"=cp3_smooth_loss3, 
+                 "cp6_smooth_loss"=cp6_smooth_loss, "cp6_smooth_loss1"=cp6_smooth_loss1, "cp6_smooth_loss2"=cp6_smooth_loss2,"cp6_smooth_loss3"=cp6_smooth_loss3,
+                 "mfpca_loss"=mfpca_loss,
+                 "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss)
   output
 }
 

@@ -28,21 +28,21 @@ mfpca_run <- function(tnsr, M_seq){
       est[,i,] <- t(reconstruction[[i]]@X)
     }
     
-    L_list <- list()
+    Lmfpca_list <- list()
     for (i in 1:b){
       Lmfpca_i <- t(eigenfunctions[[i]]@X)
-      L_list[[i]] <- qr.Q(qr(Lmfpca_i))
+      Lmfpca_list[[i]] <- qr.Q(qr(Lmfpca_i))
     }
     
-    Lmfpca <- Reduce("+", L_list) / length(L_list)
-    Lmfpca <- qr.Q(qr(Lmfpca))
+    true_M <- ncol(MFPCAres$scores)
     
-    out=list(est=est, Lmfpca=Lmfpca)
+    out=list(est=est, Lmfpca_list=Lmfpca_list, true_M=true_M)
+    return(out)
     
   } else if (length(M_seq)>1){
     exp_var = c()
     est = list()
-    Lmfpca_list = list()
+    true_M = list()
     for (i in 1:length(M_seq)){
       M_i <- M_seq[i]
       MFPCAres <- MFPCA(mfd_all, M = M_i, uniExpansions = uniExpansions, fit=TRUE)
@@ -55,24 +55,17 @@ mfpca_run <- function(tnsr, M_seq){
       }
       
       exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr@data[nmiss_idx])^2)
+      #exp_var[i] <- 1 - sum((tnsr@data[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr@data[nmiss_idx]^2)
       est[[i]] <- est_i
-      
-      L_list <- list()
-      for (j in 1:b){
-        Lmfpca_i <- t(eigenfunctions[[j]]@X)
-        L_list[[j]] <- qr.Q(qr(Lmfpca_i))
-      }
-      
-      Lmfpca_i <- Reduce("+", L_list) / length(L_list)
-      Lmfpca_i <- qr.Q(qr(Lmfpca_i))
-      Lmfpca_list[[i]] <- Lmfpca_i
+      true_M[[i]] <- ncol(MFPCAres$scores)
     }
     best_M_idx <- which.max(exp_var)
     best_M <- M_seq[best_M_idx]
     best_est <- est[[best_M_idx]]
-    best_Lmfpca <- Lmfpca_list[[best_M_idx]]
+    final_true_M <- true_M[[best_M_idx]]
     
-    out=list(est=best_est, Lmfpca=best_Lmfpca)
+    out=list(est=best_est, best_M = best_M, true_M = final_true_M)
+    return(out)
   }
 }
 

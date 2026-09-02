@@ -2,16 +2,16 @@ library(ggplot2)
 library(ggh4x)
 library(dplyr)
 
-Setting <- c("m0", "m10", "m20", "m50", "struc", "p50", "p500", "n0", "n01", "n05", "n15", "n2")
-Setting_codes <- c("m0", "m10", "m20", "m50", "struc", "p50", "m20", "p500", "n0", "n01","n05", "m20", "n15", "n2")
+Setting <- c("m0", "m10", "m20", "m50", "struc", "p50", "p500", "n0", "n05", "n15", "n2")
+Setting_codes <- c("m0", "m10", "m20", "m50", "struc", "p50", "m20", "p500", "n0", "n05", "m20", "n15", "n2")
 Setting_labels <- c("0%", "10%", "20%", "50%", "structured", 
                     "n=50", "n=200", "n=500", 
-                    "Noise: 0", "Noise: 0.1", "Noise: 0.5",
+                    "Noise: 0", "Noise: 0.5",
                     "Noise: 1", "Noise: 1.5", "Noise: 2")
 
-panel_labels <- c(rep("Missingness", 5), rep("Sample size", 3), rep("Noise level", 6))
+panel_labels <- c(rep("Missingness", 5), rep("Sample size", 3), rep("Noise level", 5))
 
-rda_files <- list.files("./full_new_v2", pattern = "\\.Rda$", full.names = TRUE)
+rda_files <- list.files("./full_new", pattern = "\\.Rda$", full.names = TRUE)
 for (f in rda_files) {
   load(f)
 }
@@ -20,31 +20,55 @@ full_results_list <- list(m0 = full_miss0, m10 = full_miss10,
                           m20 = full_miss20, m50 = full_miss50,
                           struc = full_missstruc,
                           p50 = full_p50, p500 = full_p500,
-                          n0 = full_noise0, n01 = full_noise01,
+                          n0 = full_noise0, 
                           n05 = full_noise05, n15 = full_noise15,
                           n2 = full_noise2)
 
 oracle_M_full <- list()
 kcv_M_full <- list()
-fpca_M_full <- list()
-cp_M_full <- list()
-cp_no_M_full <- list()
+fpca_cf_M_full <- list()
+fpca_ct_M_full <- list()
+cp_ortsmo_M_full <- list()
+cp_smooth_M_full <- list()
+pf_smooth_M_full <- list()
+pf2_smooth_M_full <- list()
+pf3_smooth_M_full <- list()
+pf_ortsmo_M_full <- list()
+pf2_ortsmo_M_full <- list()
+pf3_ortsmo_M_full <- list()
+ecp_ortsmo_M_full <- list()
+ecp2_ortsmo_M_full <- list()
+ecp3_ortsmo_M_full <- list()
 mfpca_M_full <- list()
 
 oracle_rank_full <- list()
 kcv_rank_full <- list()
-fpca_rank_full <- list()
-cp_rank_full <- list()
-cp_no_rank_full <- list()
+fpca_cf_rank_full <- list()
+fpca_ct_rank_full <- list()
+cp_ortsmo_rank_full <- list()
+cp_smooth_rank_full <- list()
 mfpca_rank_full <- list()
+pf_smooth_rank_full <- list()
+pf_ortsmo_rank_full <- list()
+ecp_ortsmo_rank_full <- list()
 
 # Reorganize the simulation results into lists
 for (set in Setting) {
   oracle_M_full[[set]] <- oracle_rank_full[[set]] <- 
     kcv_M_full[[set]] <- kcv_rank_full[[set]] <- 
-    fpca_M_full[[set]] <- fpca_rank_full[[set]]  <- 
-    cp_M_full[[set]] <- cp_rank_full[[set]]  <- 
-    cp_no_M_full[[set]] <- cp_no_rank_full[[set]]  <-
+    fpca_cf_M_full[[set]] <- fpca_cf_rank_full[[set]]  <- 
+    fpca_ct_M_full[[set]] <- fpca_ct_rank_full[[set]] <-
+    cp_ortsmo_M_full[[set]] <- cp_ortsmo_rank_full[[set]]  <- 
+    cp_smooth_M_full[[set]] <- cp_smooth_rank_full[[set]]  <-
+    pf_smooth_M_full[[set]] <- pf_smooth_rank_full[[set]]  <- 
+    pf2_smooth_M_full[[set]] <- 
+    pf3_smooth_M_full[[set]] <- 
+    pf_ortsmo_M_full[[set]] <- pf_ortsmo_rank_full[[set]]  <-
+    pf2_ortsmo_M_full[[set]] <- 
+    pf3_ortsmo_M_full[[set]] <- 
+    ecp_ortsmo_M_full[[set]] <- ecp_ortsmo_rank_full[[set]] <-
+    ecp2_ortsmo_M_full[[set]] <- 
+    ecp3_ortsmo_M_full[[set]] <- 
     mfpca_M_full[[set]] <- mfpca_rank_full[[set]]  <- 
     rep(NA, 100)
   
@@ -55,19 +79,41 @@ for (set in Setting) {
     oracle_rank_full[[set]][i] <- dat$oracle_rank
     kcv_M_full[[set]][i] <- dat$kcv_loss$loss_M
     kcv_rank_full[[set]][i] <- dat$kcv_rank
-    fpca_M_full[[set]][i] <- dat$fpca_loss$loss_M
-    fpca_rank_full[[set]][i] <- dat$fpca_rank
-    cp_M_full[[set]][i] <- dat$cp_loss$loss_M
-    cp_rank_full[[set]][i] <- dat$cp_rank
-    cp_no_M_full[[set]][i] <- dat$cp_no_loss$loss_M
-    cp_no_rank_full[[set]][i] <- dat$cp_no_rank
+    fpca_cf_M_full[[set]][i] <- dat$fpca_cf_loss$loss_M
+    fpca_cf_rank_full[[set]][i] <- dat$fpca_cf_rank
+    fpca_ct_M_full[[set]][i] <- dat$fpca_ct_loss$loss_M
+    fpca_ct_rank_full[[set]][i] <- dat$fpca_ct_rank
+    cp_ortsmo_M_full[[set]][i] <- dat$cp_ortsmo_loss$loss_M
+    cp_ortsmo_rank_full[[set]][i] <- dat$cp_ortsmo_rank
+    cp_smooth_M_full[[set]][i] <- dat$cp_smooth_loss$loss_M
+    cp_smooth_rank_full[[set]][i] <- dat$cp_smooth_rank
+    pf_smooth_M_full[[set]][i] <- dat$pf_smooth_loss$loss_M
+    pf_smooth_rank_full[[set]][i] <- dat$pf_smooth_rank
+    pf2_smooth_M_full[[set]][i] <- dat$pf2_smooth_loss$loss_M
+    pf3_smooth_M_full[[set]][i] <- dat$pf3_smooth_loss$loss_M
+    pf_ortsmo_M_full[[set]][i] <- dat$pf_ortsmo_loss$loss_M
+    pf_ortsmo_rank_full[[set]][i] <- dat$pf_ortsmo_rank
+    pf2_ortsmo_M_full[[set]][i] <- dat$pf2_ortsmo_loss$loss_M
+    pf3_ortsmo_M_full[[set]][i] <- dat$pf3_ortsmo_loss$loss_M
+    ecp_ortsmo_M_full[[set]][i] <- dat$ecp_ortsmo_loss$loss_M
+    ecp_ortsmo_rank_full[[set]][i] <- dat$ecp_ortsmo_rank
+    ecp2_ortsmo_M_full[[set]][i] <- dat$ecp2_ortsmo_loss$loss_M
+    ecp3_ortsmo_M_full[[set]][i] <- dat$ecp3_ortsmo_loss$loss_M
     mfpca_M_full[[set]][i] <- dat$mfpca_loss$loss_M
     mfpca_rank_full[[set]][i] <- dat$mfpca_rank
     
   }
 }
 
-methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full, FPCA = fpca_M_full, CP_Ortsmo = cp_M_full, CP_Smooth = cp_no_M_full, MFPCA = mfpca_M_full)
+methods_full <- list(Oracle = oracle_M_full, SmoothHOOI = kcv_M_full, FPCA = fpca_cf_M_full, 
+                     CP_Ortsmo = cp_ortsmo_M_full, CP_Smooth = cp_smooth_M_full, 
+                     PARAFAC2_Smooth = pf_smooth_M_full,
+                     PARAFAC2_2_Smooth = pf2_smooth_M_full, PARAFAC2_3_Smooth = pf3_smooth_M_full, 
+                     SCA_IND_Smooth = pf_ortsmo_M_full,
+                     SCA_IND_2_Smooth = pf2_ortsmo_M_full, SCA_IND_3_Smooth = pf3_ortsmo_M_full,
+                     SCA_ECP_Smooth = ecp_ortsmo_M_full,
+                     SCA_ECP_2_Smooth = ecp2_ortsmo_M_full, SCA_ECP_3_Smooth = ecp3_ortsmo_M_full,
+                     MFPCA = mfpca_M_full)
 
 data_list_full <- list()
 
@@ -86,8 +132,11 @@ data_full <- do.call(rbind, data_list_full)
 
 data <- data.frame(data_full)
 
-data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth"))
-data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data$method <- factor(data$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth",
+                                            "PARAFAC2_Smooth","PARAFAC2_3_Smooth",
+                                            "SCA_IND_Smooth","SCA_IND_2_Smooth","SCA_IND_3_Smooth",
+                                            "SCA_ECP_Smooth","SCA_ECP_2_Smooth","SCA_ECP_3_Smooth"))
+data$Setting <- factor(data$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data$panel <- factor(data$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 panel_limits <- data %>%
@@ -99,31 +148,14 @@ panel_limits <- data %>%
 data <- data %>%
   left_join(panel_limits, by = "panel") 
 
-ggplot(data[which(data$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, fill = method)) +
-  geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.7, outlier.size = 0.5) +
-  geom_blank(aes(y = ymin)) +
-  geom_blank(aes(y = ymax)) +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
-  guides(fill = guide_legend(byrow = TRUE, nrow = 1)) +
-  labs(y = "Loss of M", fill = "Method", title = "") +
-  theme(
-    legend.position = "bottom",
-    legend.direction = "horizontal",
-    axis.text.x = element_text(angle = 30, hjust = 1, size = 13),
-    plot.title = element_text(hjust = 0.5, size = 13),
-    axis.title = element_text(hjust = 0.5, size = 13),
-    axis.text.y = element_text(hjust = 0.5, size = 13),
-    strip.text = element_text(size = 13),
-    legend.text = element_text(size = 13),
-    legend.title = element_text(size = 13)
-  )
-#ggsave("./full_lossM_boxplot_complete.pdf", width=12, height=10)
 
 data_subset <- data.frame(data_full) 
-data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Smooth"))
+data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth",
+                                                 "PARAFAC2_Smooth","SCA_IND_Smooth","SCA_ECP_Smooth"))
 
-data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Smooth"))
-data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0", "Noise: 0.1", "Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortsmo", "CP_Smooth",
+                                                          "PARAFAC2_Smooth","SCA_IND_Smooth","SCA_ECP_Smooth"))
+data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0","Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
 data_subset$panel <- factor(data_subset$panel, levels=c("Missingness", "Sample size", "Noise level"))
 
 panel_limits <- data_subset %>%
@@ -139,7 +171,9 @@ ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, 
   geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.7, outlier.size = 0.5) +
   geom_blank(aes(y = ymin)) +
   geom_blank(aes(y = ymax)) +
-  facet_nested(~panel, scales = "free", space ="free_x", independent = "y") +
+  scale_y_continuous(breaks = seq(0, 0.8, by = 0.2)) +
+  coord_cartesian(ylim = c(0, 0.85)) +
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none") +
   guides(fill = guide_legend(byrow = TRUE, nrow = 1)) +
   labs(y = "Loss of M", fill = "Method", title = "") +
   theme(
@@ -153,11 +187,50 @@ ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, 
     legend.text = element_text(size = 15),
     legend.title = element_text(size = 15)
   )
-#ggsave("./full_lossM_boxplot_noOrtho.pdf", width=12, height=6)
+#ggsave("./full_lossM_boxplot_complete_updated.pdf", width=18, height=12)
+
+data_subset <- data.frame(data_full) 
+data_subset <- subset(data_subset, method %in% c("Oracle", "SmoothHOOI","FPCA", "MFPCA", "CP_Smooth"))
+
+data_subset$method <- factor(data_subset$method, levels=c("Oracle", "SmoothHOOI","FPCA",  "MFPCA", "CP_Smooth"))
+data_subset$Setting <- factor(data_subset$Setting, levels=c("0%", "10%", "20%", "50%", "structured","n=50", "n=200","n=500","Noise: 0","Noise: 0.5","Noise: 1", "Noise: 1.5", "Noise: 2"))
+data_subset$panel <- factor(data_subset$panel, levels=c("Missingness", "Sample size", "Noise level"))
+
+panel_limits <- data_subset %>%
+  group_by(panel) %>%
+  summarise(ymin = min(y_value, na.rm = TRUE),
+            ymax = max(y_value, na.rm = TRUE))
+
+
+data_subset <- data_subset %>%
+  left_join(panel_limits, by = "panel") 
+
+ggplot(data_subset[which(data_subset$Setting!="Noise: 0.1"),], aes(x = Setting, y = y_value, fill = method)) +
+  geom_boxplot(position = position_dodge(width = 0.8), alpha = 0.7, outlier.size = 0.5) +
+  geom_blank(aes(y = ymin)) +
+  geom_blank(aes(y = ymax)) +
+  scale_y_continuous(breaks = seq(0, 0.125, by = 0.025)) +
+  coord_cartesian(ylim = c(0, 0.135)) +
+  facet_nested(~panel, scales = "free_x", space ="free_x", independent = "none") +
+  guides(fill = guide_legend(byrow = TRUE, nrow = 1)) +
+  labs(y = "Loss of M", fill = "Method", title = "") +
+  theme(
+    legend.position = "bottom",
+    legend.direction = "horizontal",
+    axis.text.x = element_text(angle = 30, hjust = 1, size = 15),
+    plot.title = element_text(hjust = 0.5, size = 15),
+    axis.title = element_text(hjust = 0.5, size = 18),
+    axis.text.y = element_text(hjust = 0.5, size = 15),
+    strip.text = element_text(size = 18),
+    legend.text = element_text(size = 16),
+    legend.title = element_text(size = 16)
+  )
+#ggsave("./full_lossM_boxplot_subset_updated.pdf", width=12, height=8)
+
 
 # table() rank for all the methods in c("Oracle", "SmoothHOOI", "FPCA",  "MFPCA", "CP_Ortho", "CP")
 rank_tables <- list()
-for (method in c("oracle_rank_full", "kcv_rank_full", "fpca_rank_full", "mfpca_rank_full", "cp_rank_full", "cp_no_rank_full")) {
+for (method in c("oracle_rank_full", "kcv_rank_full", "fpca_cf_rank_full", "mfpca_rank_full", "cp_ortsmo_rank_full", "cp_smooth_rank_full","pf_smooth_rank_full","pf_ortsmo_rank_full", "ecp_ortsmo_rank_full")) {
   rank_tables[[method]] <- list()
   for (set in Setting) {
     rank_tables[[method]][[set]] <- table(get(method)[[set]]) 
@@ -183,17 +256,23 @@ for (method in names(rank_tables)) {
 rank_data_list_full <- do.call(rbind, rank_data_list)
 rank_data_list_full
 
+
 rank_data_list_full <- rank_data_list_full %>% 
-  filter(method %in% c("kcv_rank_full", "fpca_rank_full", "cp_rank_full")) %>% 
+  filter(method %in% c("kcv_rank_full", "fpca_cf_rank_full", 
+                       # "cp_ortsmo_rank_full","pf_smooth_rank_full","pf_ortsmo_rank_full", 
+                       "ecp_ortsmo_rank_full")) %>% 
   filter(Setting %in% setdiff(unique(rank_data_list_full$Setting), c("Noise: 0.1"))) %>% 
   mutate(panel=factor(panel, levels=c("Missingness", "Sample size", "Noise level")))
 
 rank_data_list_full$method <- dplyr::recode(rank_data_list_full$method,
                                             kcv_rank_full = "SmoothHOOI",
-                                            fpca_rank_full = "FPCA",
-                                            cp_rank_full = "CP_Ortsmo")
+                                            fpca_cf_rank_full = "FPCA",
+                                            # cp_ortsmo_rank_full = "CP_Ortsmo",
+                                            # pf_smooth_rank_full = "PARAFAC2",
+                                            # pf_ortsmo_rank_full = "SCA_IND",
+                                            ecp_ortsmo_rank_full = "SCA_ECP")
 
-rank_data_list_full$method <- factor(rank_data_list_full$method, levels=c("SmoothHOOI", "FPCA", "CP_Ortsmo"))
+rank_data_list_full$method <- factor(rank_data_list_full$method, levels=c("SmoothHOOI", "FPCA", "CP_Ortsmo","PARAFAC2","SCA_IND","SCA_ECP"))
 
 rank_data_list_full$Rank <- factor(rank_data_list_full$Rank,
                                    levels = c("2","3","4","5","6"))
@@ -241,7 +320,7 @@ ggplot(rank_data_list_full, aes(x = Setting, y = Count, fill = Rank)) +
         legend.title = element_text(size = 12)) +
   guides(fill = guide_legend(reverse = FALSE)) 
 
-#ggsave("./rankselect.pdf", dpi=600, width = 12, height=6)
+#ggsave("./rankselect_updated.pdf", dpi=600, width = 15, height=6)
 
 missing_rate_vec_full <- c()
 for (i in 1:100){
@@ -249,5 +328,5 @@ for (i in 1:100){
 }
 summary(missing_rate_vec_full)
 
-summary(c(missing_rate_vec_fixr,missing_rate_vec_full))
+
 

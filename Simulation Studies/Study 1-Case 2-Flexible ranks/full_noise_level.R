@@ -6,11 +6,13 @@ library(rTensor)
 library(MASS)
 library(refund)
 library(SmoothHOOI)
+library(MFPCA)
 
 source("./fpca_run.R") # script for running univariate FPCA
 source("./cp_run.R")   # script for running CP decomposition with imputation and smoothness
 source("./mfpca_run.R") # script for running MFPCA
-
+source("./parafac2_run.R") # script for running PARAFAC2 (SCA-PF2 and SCA-IND)
+source("./sca_ecp_run.R") # script for running SCA-ECP
 
 ## Should run this on HPC 
 
@@ -34,121 +36,303 @@ full_noise0 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiwa
                         E = E, p=200, noise_level=0, pattern="random", percent=0.2)
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
-
-  oracle_opt <- oracle(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
-                       init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
-
+  
+  oracle_opt <- oracle_memeff(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
+                              init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
+  
   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
-
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
-                      L = oracle_tilde$L_tilde, true_L = L_tilde)
-
-  kcv_opt <- kcv(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
-                 L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
+  
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
+  
+  kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
+                        L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+  
   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
-
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
-                   L = kcv_tilde$L_tilde, true_L = L_tilde)
-
-  ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_cf_res <- fpca_run(Mmiss, center=FALSE)
+  
+  fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+  
+  fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness and orthogonality
-  cp_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  cp_ortsmo_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
   
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
+  cp_ortsmo_loss <- loss(tnsr = cp_ortsmo_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness, no orthogonality 
-  cp_no_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  cp_smooth_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
   
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
+  cp_smooth_loss <- loss(tnsr = cp_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness and orthogonality
+  cp2_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp2_ortsmo_loss <- loss(tnsr = cp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness, no orthogonality 
+  cp2_smooth_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  cp2_smooth_loss <- loss(tnsr = cp2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness and orthogonality
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness, no orthogonality 
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness and orthogonality
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness, no orthogonality 
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data)
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
+  mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
   
-  output <- list("oracle_rank"=oracle_opt$opt_para[1], "oracle_loss"=oracle_loss,
-                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_loss"=kcv_loss, 
-                 "fpca_rank"=ncol(fpca_res$Lfpca), "fpca_loss"=fpca_loss,
-                 "cp_rank"=cp_res$best_R, "cp_loss"=cp_loss, 
-                 "cp_no_rank"=cp_no_res$best_R, "cp_no_loss"=cp_no_loss,
-                 "mfpca_rank"=ncol(mfpca_res$Lmfpca), "mfpca_loss"=mfpca_loss)
+  ## MFPCA-2
+  mfpca2_res <- mfpca_run(Mmiss, M_seq=c(2))
+  
+  mfpca2_loss <- loss(tnsr = mfpca2_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-3
+  mfpca3_res <- mfpca_run(Mmiss, M_seq=c(3))
+  
+  mfpca3_loss <- loss(tnsr = mfpca3_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-6
+  mfpca6_res <- mfpca_run(Mmiss, M_seq=c(6))
+  
+  mfpca6_loss <- loss(tnsr = mfpca6_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness, no orthogonality 
+  pf_smooth_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  
+  pf_smooth_loss <- loss(tnsr = pf_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness, no orthogonality 
+  pf2_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  pf2_smooth_loss <- loss(tnsr = pf2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness and orthogonality 
+  pf_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf_ortsmo_loss <- loss(tnsr = pf_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness and orthogonality
+  pf2_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf2_ortsmo_loss <- loss(tnsr = pf2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp2_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp2_ortsmo_loss <- loss(tnsr = ecp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp3_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp3_ortsmo_loss <- loss(tnsr = ecp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  output <- list("oracle_rank"=oracle_opt$opt_para[1],"oracle_r2"=oracle_opt$opt_para[2], "oracle_loss"=oracle_loss,
+                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_r2"=kcv_opt$opt_para[2], "kcv_loss"=kcv_loss, 
+                 "fpca_cf_rank"=fpca_cf_res$min_col, "fpca_cf_loss"=fpca_cf_loss, "fpca_ct_rank"=fpca_ct_res$min_col, "fpca_ct_loss"=fpca_ct_loss,
+                 "cp_ortsmo_rank"=cp_ortsmo_res$best_R, "cp_ortsmo_loss"=cp_ortsmo_loss, 
+                 "cp2_ortsmo_loss"=cp2_ortsmo_loss,"cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp6_ortsmo_loss"=cp6_ortsmo_loss,
+                 "cp_smooth_rank"=cp_smooth_res$best_R, "cp_smooth_loss"=cp_smooth_loss, 
+                 "cp2_smooth_loss"=cp2_smooth_loss,"cp3_smooth_loss"=cp3_smooth_loss, "cp6_smooth_loss"=cp6_smooth_loss,
+                 "pf_smooth_loss"=pf_smooth_loss, "pf_smooth_rank"=pf_smooth_res$best_R,
+                 "pf2_smooth_loss"=pf2_smooth_loss, "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf_ortsmo_loss"=pf_ortsmo_loss, "pf_ortsmo_rank"=pf_ortsmo_res$best_R,
+                 "pf2_ortsmo_loss"=pf2_ortsmo_loss, "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss, "ecp_ortsmo_rank"=ecp_ortsmo_res$best_R,
+                 "ecp2_ortsmo_loss"=ecp2_ortsmo_loss, "ecp3_ortsmo_loss"=ecp3_ortsmo_loss,
+                 "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M, "mfpca_loss"=mfpca_loss, 
+                 "mfpca2_loss"=mfpca2_loss, "mfpca2_true_rank"=mfpca2_res$true_M,
+                 "mfpca3_loss"=mfpca3_loss, "mfpca3_true_rank"=mfpca3_res$true_M,
+                 "mfpca6_loss"=mfpca6_loss, "mfpca6_true_rank"=mfpca6_res$true_M)
   output
 }
 
-save(full_noise0, file="./full_new_v2/full_noise0.Rda")
+save(full_noise0, file="./full_new/full_noise0.Rda")
 
 ## noise level 0.1*empirical var
-set.seed(111111)
-
-full_noise01 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway","funData","MFPCA","SmoothHOOI")) %dorng%{
-  sim_data <- sim_data2(L = L_tilde, R= R_tilde, mean_G = mean_G, cov_G = cov_G,
-                        E = E, p=200, noise_level=0.1, pattern="random", percent=0.2)
-  Mmiss <- sim_data$sim_Mmiss
-  Msmooth <- sim_data$sim_Msmooth
-
-  oracle_opt <- oracle(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
-                       init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
-
-  oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
-                       L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
-
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
-                      L = oracle_tilde$L_tilde, true_L = L_tilde)
-
-  kcv_opt <- kcv(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
-                 L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
-                    L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
-
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
-                   L = kcv_tilde$L_tilde, true_L = L_tilde)
-
-  ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
-  
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
-  
-  ## CP with imputation and smoothness and orthogonality
-  cp_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
-  
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
-  
-  ## CP with imputation and smoothness, no orthogonality 
-  cp_no_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
-  
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
-  
-  ## MFPCA 
-  mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
-  
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
-  
-  output <- list("oracle_rank"=oracle_opt$opt_para[1], "oracle_loss"=oracle_loss,
-                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_loss"=kcv_loss, 
-                 "fpca_rank"=ncol(fpca_res$Lfpca), "fpca_loss"=fpca_loss,
-                 "cp_rank"=cp_res$best_R, "cp_loss"=cp_loss, 
-                 "cp_no_rank"=cp_no_res$best_R, "cp_no_loss"=cp_no_loss,
-                 "mfpca_rank"=ncol(mfpca_res$Lmfpca), "mfpca_loss"=mfpca_loss)
-  output
-}
-
-save(full_noise01, file="./full_new_v2/full_noise01.Rda")
+# set.seed(111111)
+# 
+# full_noise01 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiway","funData","MFPCA","SmoothHOOI")) %dorng%{
+#   sim_data <- sim_data2(L = L_tilde, R= R_tilde, mean_G = mean_G, cov_G = cov_G,
+#                         E = E, p=200, noise_level=0.1, pattern="random", percent=0.2)
+#   Mmiss <- sim_data$sim_Mmiss
+#   Msmooth <- sim_data$sim_Msmooth
+# 
+#   oracle_opt <- oracle_memeff(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
+#                        init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
+# 
+#   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
+#                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+# 
+#   oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
+# 
+#   kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
+#                  L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+# 
+#   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
+#                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+# 
+#   kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
+# 
+#   ## FPCA, allowing the number of principal components to vary
+#   fpca_cf_res <- fpca_run(Mmiss, center=FALSE)
+#   
+#   fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## FPCA, allowing the number of principal components to vary
+#   fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+#   
+#   fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP with imputation and smoothness and orthogonality
+#   cp_ortsmo_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   cp_ortsmo_loss <- loss(tnsr = cp_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP with imputation and smoothness, no orthogonality 
+#   cp_smooth_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+#   
+#   cp_smooth_loss <- loss(tnsr = cp_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP2 with imputation and smoothness and orthogonality
+#   cp2_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   cp2_ortsmo_loss <- loss(tnsr = cp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP2 with imputation and smoothness, no orthogonality 
+#   cp2_smooth_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+#   
+#   cp2_smooth_loss <- loss(tnsr = cp2_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP3 with imputation and smoothness and orthogonality
+#   cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP3 with imputation and smoothness, no orthogonality 
+#   cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+#   
+#   cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP6 with imputation and smoothness and orthogonality
+#   cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## CP6 with imputation and smoothness, no orthogonality 
+#   cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+#   
+#   cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## MFPCA 
+#   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
+#   
+#   mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## MFPCA-2
+#   mfpca2_res <- mfpca_run(Mmiss, M_seq=c(2))
+#   
+#   mfpca2_loss <- loss(tnsr = mfpca2_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## MFPCA-3
+#   mfpca3_res <- mfpca_run(Mmiss, M_seq=c(3))
+#   
+#   mfpca3_loss <- loss(tnsr = mfpca3_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## MFPCA-6
+#   mfpca6_res <- mfpca_run(Mmiss, M_seq=c(6))
+#   
+#   mfpca6_loss <- loss(tnsr = mfpca6_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## PARAFAC2-2 with imputation and smoothness, no orthogonality 
+#   pf2_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+#   
+#   pf2_smooth_loss <- loss(tnsr = pf2_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+#   pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+#   
+#   pf3_smooth_loss <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## PARAFAC2-2 with imputation and smoothness and orthogonality
+#   pf2_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   pf2_ortsmo_loss <- loss(tnsr = pf2_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## PARAFAC2-3 with imputation and smoothness and orthogonality
+#   pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   pf3_ortsmo_loss <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## SCA-ECP-2 with imputation and smoothness and orthogonality
+#   ecp2_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   ecp2_ortsmo_loss <- loss(tnsr = ecp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   ## SCA-ECP with imputation and smoothness and orthogonality
+#   ecp3_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+#   
+#   ecp3_ortsmo_loss <- loss(tnsr = ecp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+#   
+#   output <- list("oracle_rank"=oracle_opt$opt_para[1],"oracle_r2"=oracle_opt$opt_para[2], "oracle_loss"=oracle_loss,
+#                  "kcv_rank"=kcv_opt$opt_para[1],"kcv_r2"=kcv_opt$opt_para[2], "kcv_loss"=kcv_loss, 
+#                  "fpca_cf_rank"=fpca_cf_res$min_col, "fpca_cf_loss"=fpca_cf_loss, "fpca_ct_rank"=fpca_ct_res$min_col, "fpca_ct_loss"=fpca_ct_loss,
+#                  "cp_ortsmo_rank"=cp_ortsmo_res$best_R, "cp_ortsmo_loss"=cp_ortsmo_loss, 
+#                  "cp2_ortsmo_loss"=cp2_ortsmo_loss,"cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp6_ortsmo_loss"=cp6_ortsmo_loss,
+#                  "cp_smooth_rank"=cp_smooth_res$best_R, "cp_smooth_loss"=cp_smooth_loss, 
+#                  "cp2_smooth_loss"=cp2_smooth_loss,"cp3_smooth_loss"=cp3_smooth_loss, "cp6_smooth_loss"=cp6_smooth_loss,
+#                  "pf2_smooth_loss"=pf2_smooth_loss, "pf3_smooth_loss"=pf3_smooth_loss,
+#                  "pf2_ortsmo_loss"=pf2_ortsmo_loss, "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+#                  "ecp2_ortsmo_loss"=ecp2_ortsmo_loss, "ecp3_ortsmo_loss"=ecp3_ortsmo_loss,
+#                  "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M, "mfpca_loss"=mfpca_loss, 
+#                  "mfpca2_loss"=mfpca2_loss, "mfpca2_true_rank"=mfpca2_res$true_M,
+#                  "mfpca3_loss"=mfpca3_loss, "mfpca3_true_rank"=mfpca3_res$true_M,
+#                  "mfpca6_loss"=mfpca6_loss, "mfpca6_true_rank"=mfpca6_res$true_M)
+#   output
+# }
+# 
+# save(full_noise01, file="./full_new/full_noise01.Rda")
 
 ## noise level 0.5*empirical var
 set.seed(55555)
@@ -158,59 +342,159 @@ full_noise05 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiw
                         E = E, p=200, noise_level=0.5, pattern="random", percent=0.2)
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
-
-  oracle_opt <- oracle(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
-                       init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
-
+  
+  oracle_opt <- oracle_memeff(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
+                              init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
+  
   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
-
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
-                      L = oracle_tilde$L_tilde, true_L = L_tilde)
-
-  kcv_opt <- kcv(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
-                 L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
+  
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
+  
+  kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
+                        L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+  
   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
-
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
-                   L = kcv_tilde$L_tilde, true_L = L_tilde)
-
-  ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_cf_res <- fpca_run(Mmiss, center=FALSE)
+  
+  fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+  
+  fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness and orthogonality
-  cp_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  cp_ortsmo_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
   
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
+  cp_ortsmo_loss <- loss(tnsr = cp_ortsmo_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness, no orthogonality 
-  cp_no_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  cp_smooth_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
   
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
+  cp_smooth_loss <- loss(tnsr = cp_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness and orthogonality
+  cp2_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp2_ortsmo_loss <- loss(tnsr = cp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness, no orthogonality 
+  cp2_smooth_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  cp2_smooth_loss <- loss(tnsr = cp2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness and orthogonality
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness, no orthogonality 
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness and orthogonality
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness, no orthogonality 
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data)
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
+  mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
   
-  output <- list("oracle_rank"=oracle_opt$opt_para[1], "oracle_loss"=oracle_loss,
-                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_loss"=kcv_loss, 
-                 "fpca_rank"=ncol(fpca_res$Lfpca), "fpca_loss"=fpca_loss,
-                 "cp_rank"=cp_res$best_R, "cp_loss"=cp_loss, 
-                 "cp_no_rank"=cp_no_res$best_R, "cp_no_loss"=cp_no_loss,
-                 "mfpca_rank"=ncol(mfpca_res$Lmfpca), "mfpca_loss"=mfpca_loss)
+  ## MFPCA-2
+  mfpca2_res <- mfpca_run(Mmiss, M_seq=c(2))
+  
+  mfpca2_loss <- loss(tnsr = mfpca2_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-3
+  mfpca3_res <- mfpca_run(Mmiss, M_seq=c(3))
+  
+  mfpca3_loss <- loss(tnsr = mfpca3_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-6
+  mfpca6_res <- mfpca_run(Mmiss, M_seq=c(6))
+  
+  mfpca6_loss <- loss(tnsr = mfpca6_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness, no orthogonality 
+  pf_smooth_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  
+  pf_smooth_loss <- loss(tnsr = pf_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness, no orthogonality 
+  pf2_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  pf2_smooth_loss <- loss(tnsr = pf2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness and orthogonality 
+  pf_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf_ortsmo_loss <- loss(tnsr = pf_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness and orthogonality
+  pf2_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf2_ortsmo_loss <- loss(tnsr = pf2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp2_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp2_ortsmo_loss <- loss(tnsr = ecp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp3_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp3_ortsmo_loss <- loss(tnsr = ecp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  output <- list("oracle_rank"=oracle_opt$opt_para[1],"oracle_r2"=oracle_opt$opt_para[2], "oracle_loss"=oracle_loss,
+                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_r2"=kcv_opt$opt_para[2], "kcv_loss"=kcv_loss, 
+                 "fpca_cf_rank"=fpca_cf_res$min_col, "fpca_cf_loss"=fpca_cf_loss, "fpca_ct_rank"=fpca_ct_res$min_col, "fpca_ct_loss"=fpca_ct_loss,
+                 "cp_ortsmo_rank"=cp_ortsmo_res$best_R, "cp_ortsmo_loss"=cp_ortsmo_loss, 
+                 "cp2_ortsmo_loss"=cp2_ortsmo_loss,"cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp6_ortsmo_loss"=cp6_ortsmo_loss,
+                 "cp_smooth_rank"=cp_smooth_res$best_R, "cp_smooth_loss"=cp_smooth_loss, 
+                 "cp2_smooth_loss"=cp2_smooth_loss,"cp3_smooth_loss"=cp3_smooth_loss, "cp6_smooth_loss"=cp6_smooth_loss,
+                 "pf_smooth_loss"=pf_smooth_loss, "pf_smooth_rank"=pf_smooth_res$best_R,
+                 "pf2_smooth_loss"=pf2_smooth_loss, "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf_ortsmo_loss"=pf_ortsmo_loss, "pf_ortsmo_rank"=pf_ortsmo_res$best_R,
+                 "pf2_ortsmo_loss"=pf2_ortsmo_loss, "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss, "ecp_ortsmo_rank"=ecp_ortsmo_res$best_R,
+                 "ecp2_ortsmo_loss"=ecp2_ortsmo_loss, "ecp3_ortsmo_loss"=ecp3_ortsmo_loss,
+                 "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M, "mfpca_loss"=mfpca_loss, 
+                 "mfpca2_loss"=mfpca2_loss, "mfpca2_true_rank"=mfpca2_res$true_M,
+                 "mfpca3_loss"=mfpca3_loss, "mfpca3_true_rank"=mfpca3_res$true_M,
+                 "mfpca6_loss"=mfpca6_loss, "mfpca6_true_rank"=mfpca6_res$true_M)
   output
 }
 
-save(full_noise05, file="./full_new_v2/full_noise05.Rda")
+save(full_noise05, file="./full_new/full_noise05.Rda")
 
 ## noise level 1.5*empirical var
 set.seed(15)
@@ -220,59 +504,159 @@ full_noise15 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiw
                         E = E, p=200, noise_level=1.5, pattern="random", percent=0.2)
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
-
-  oracle_opt <- oracle(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
-                       init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
-
+  
+  oracle_opt <- oracle_memeff(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
+                              init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
+  
   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
-
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
-                      L = oracle_tilde$L_tilde, true_L = L_tilde)
-
-  kcv_opt <- kcv(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
-                 L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
+  
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
+  
+  kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
+                        L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+  
   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
-
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
-
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
-                   L = kcv_tilde$L_tilde, true_L = L_tilde)
-
-  ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_cf_res <- fpca_run(Mmiss, center=FALSE)
+  
+  fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+  
+  fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness and orthogonality
-  cp_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  cp_ortsmo_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
   
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
+  cp_ortsmo_loss <- loss(tnsr = cp_ortsmo_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness, no orthogonality 
-  cp_no_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  cp_smooth_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
   
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
+  cp_smooth_loss <- loss(tnsr = cp_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness and orthogonality
+  cp2_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp2_ortsmo_loss <- loss(tnsr = cp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness, no orthogonality 
+  cp2_smooth_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  cp2_smooth_loss <- loss(tnsr = cp2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness and orthogonality
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness, no orthogonality 
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness and orthogonality
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness, no orthogonality 
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data)
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
+  mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
   
-  output <- list("oracle_rank"=oracle_opt$opt_para[1], "oracle_loss"=oracle_loss,
-                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_loss"=kcv_loss, 
-                 "fpca_rank"=ncol(fpca_res$Lfpca), "fpca_loss"=fpca_loss,
-                 "cp_rank"=cp_res$best_R, "cp_loss"=cp_loss, 
-                 "cp_no_rank"=cp_no_res$best_R, "cp_no_loss"=cp_no_loss,
-                 "mfpca_rank"=ncol(mfpca_res$Lmfpca), "mfpca_loss"=mfpca_loss)
+  ## MFPCA-2
+  mfpca2_res <- mfpca_run(Mmiss, M_seq=c(2))
+  
+  mfpca2_loss <- loss(tnsr = mfpca2_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-3
+  mfpca3_res <- mfpca_run(Mmiss, M_seq=c(3))
+  
+  mfpca3_loss <- loss(tnsr = mfpca3_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-6
+  mfpca6_res <- mfpca_run(Mmiss, M_seq=c(6))
+  
+  mfpca6_loss <- loss(tnsr = mfpca6_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness, no orthogonality 
+  pf_smooth_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  
+  pf_smooth_loss <- loss(tnsr = pf_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness, no orthogonality 
+  pf2_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  pf2_smooth_loss <- loss(tnsr = pf2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness and orthogonality 
+  pf_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf_ortsmo_loss <- loss(tnsr = pf_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness and orthogonality
+  pf2_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf2_ortsmo_loss <- loss(tnsr = pf2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp2_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp2_ortsmo_loss <- loss(tnsr = ecp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp3_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp3_ortsmo_loss <- loss(tnsr = ecp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  output <- list("oracle_rank"=oracle_opt$opt_para[1],"oracle_r2"=oracle_opt$opt_para[2], "oracle_loss"=oracle_loss,
+                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_r2"=kcv_opt$opt_para[2], "kcv_loss"=kcv_loss, 
+                 "fpca_cf_rank"=fpca_cf_res$min_col, "fpca_cf_loss"=fpca_cf_loss, "fpca_ct_rank"=fpca_ct_res$min_col, "fpca_ct_loss"=fpca_ct_loss,
+                 "cp_ortsmo_rank"=cp_ortsmo_res$best_R, "cp_ortsmo_loss"=cp_ortsmo_loss, 
+                 "cp2_ortsmo_loss"=cp2_ortsmo_loss,"cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp6_ortsmo_loss"=cp6_ortsmo_loss,
+                 "cp_smooth_rank"=cp_smooth_res$best_R, "cp_smooth_loss"=cp_smooth_loss, 
+                 "cp2_smooth_loss"=cp2_smooth_loss,"cp3_smooth_loss"=cp3_smooth_loss, "cp6_smooth_loss"=cp6_smooth_loss,
+                 "pf_smooth_loss"=pf_smooth_loss, "pf_smooth_rank"=pf_smooth_res$best_R,
+                 "pf2_smooth_loss"=pf2_smooth_loss, "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf_ortsmo_loss"=pf_ortsmo_loss, "pf_ortsmo_rank"=pf_ortsmo_res$best_R,
+                 "pf2_ortsmo_loss"=pf2_ortsmo_loss, "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss, "ecp_ortsmo_rank"=ecp_ortsmo_res$best_R,
+                 "ecp2_ortsmo_loss"=ecp2_ortsmo_loss, "ecp3_ortsmo_loss"=ecp3_ortsmo_loss,
+                 "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M, "mfpca_loss"=mfpca_loss, 
+                 "mfpca2_loss"=mfpca2_loss, "mfpca2_true_rank"=mfpca2_res$true_M,
+                 "mfpca3_loss"=mfpca3_loss, "mfpca3_true_rank"=mfpca3_res$true_M,
+                 "mfpca6_loss"=mfpca6_loss, "mfpca6_true_rank"=mfpca6_res$true_M)
   output
 }
 
-save(full_noise15, file="./full_new_v2/full_noise15.Rda")
+save(full_noise15, file="./full_new/full_noise15.Rda")
 
 ## noise level 2*empirical var
 set.seed(13579)
@@ -283,59 +667,159 @@ full_noise2 <- foreach(i = 1:N, .packages = c("rTensor","MASS","refund","multiwa
   Mmiss <- sim_data$sim_Mmiss
   Msmooth <- sim_data$sim_Msmooth
   
-  oracle_opt <- oracle(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
-                       init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
+  oracle_opt <- oracle_memeff(tnsr=Mmiss@data, smooth_tnsr=Msmooth@data, rank_grid=rank_grid, lambda_seq=lambda_seq,
+                              init=0, D = D2, max_iter = 500, tol = 0.1, L0 = NULL)
   
   oracle_res <- mglram(Mmiss@data, ranks=as.numeric(oracle_opt$opt_para[1:2]), lambda=as.numeric(oracle_opt$opt_para[3]),
                        L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
-  oracle_tilde <- MakeIdent(L=oracle_res$L, G=oracle_res$G, R=oracle_res$R)
+  oracle_loss <- loss(tnsr = oracle_res$est, true_tnsr=Msmooth@data)
   
-  oracle_loss <- loss(tnsr = oracle_res$est, smooth_tnsr=Msmooth@data,
-                      L = oracle_tilde$L_tilde, true_L = L_tilde)
-  
-  kcv_opt <- kcv(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
-                 L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
+  kcv_opt <- kcv_memeff(tnsr=Mmiss@data, rank_grid=rank_grid, lambda_seq=lambda_seq, k=10,
+                        L0 = NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
   kcv_res <- mglram(Mmiss@data, ranks=as.numeric(kcv_opt$opt_para[1:2]), lambda=as.numeric(kcv_opt$opt_para[3]),
                     L0=NULL, D = D2, tol = 0.1, max_iter = 500, init = 0)
   
-  kcv_tilde <- MakeIdent(L=kcv_res$L, G=kcv_res$G, R=kcv_res$R)
-  
-  kcv_loss <- loss(tnsr = kcv_res$est, smooth_tnsr=Msmooth@data,
-                   L = kcv_tilde$L_tilde, true_L = L_tilde)
+  kcv_loss <- loss(tnsr = kcv_res$est, true_tnsr=Msmooth@data)
   
   ## FPCA, allowing the number of principal components to vary
-  fpca_res <- fpca_run(Mmiss)
+  fpca_cf_res <- fpca_run(Mmiss, center=FALSE)
   
-  fpca_loss <- loss(tnsr = fpca_res$est, smooth_tnsr=Msmooth@data)
+  fpca_cf_loss <- loss(tnsr = fpca_cf_res$est, true_tnsr=Msmooth@data)
+  
+  ## FPCA, allowing the number of principal components to vary
+  fpca_ct_res <- fpca_run(Mmiss, center=TRUE)
+  
+  fpca_ct_loss <- loss(tnsr = fpca_ct_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness and orthogonality
-  cp_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  cp_ortsmo_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
   
-  cp_loss <- loss(tnsr = cp_res$est, smooth_tnsr=Msmooth@data)
+  cp_ortsmo_loss <- loss(tnsr = cp_ortsmo_res$est, true_tnsr=Msmooth@data)
   
   ## CP with imputation and smoothness, no orthogonality 
-  cp_no_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  cp_smooth_res <- cp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
   
-  cp_no_loss <- loss(tnsr = cp_no_res$est, smooth_tnsr=Msmooth@data)
+  cp_smooth_loss <- loss(tnsr = cp_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness and orthogonality
+  cp2_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp2_ortsmo_loss <- loss(tnsr = cp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP2 with imputation and smoothness, no orthogonality 
+  cp2_smooth_res <- cp_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  cp2_smooth_loss <- loss(tnsr = cp2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness and orthogonality
+  cp3_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp3_ortsmo_loss <- loss(tnsr = cp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP3 with imputation and smoothness, no orthogonality 
+  cp3_smooth_res <- cp_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  cp3_smooth_loss <- loss(tnsr = cp3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness and orthogonality
+  cp6_ortsmo_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("ortsmo", "uncons", "uncons"))
+  
+  cp6_ortsmo_loss <- loss(tnsr = cp6_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## CP6 with imputation and smoothness, no orthogonality 
+  cp6_smooth_res <- cp_run(Mmiss@data, R_seq=c(6), const=c("smooth", "uncons", "uncons"))
+  
+  cp6_smooth_loss <- loss(tnsr = cp6_smooth_res$est, true_tnsr=Msmooth@data)
   
   ## MFPCA 
   mfpca_res <- mfpca_run(Mmiss, M_seq=seq(2,6,by=1))
   
-  mfpca_loss <- loss(tnsr = mfpca_res$est, smooth_tnsr=Msmooth@data)
+  mfpca_loss <- loss(tnsr = mfpca_res$est, true_tnsr=Msmooth@data)
   
-  output <- list("oracle_rank"=oracle_opt$opt_para[1], "oracle_loss"=oracle_loss,
-                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_loss"=kcv_loss, 
-                 "fpca_rank"=ncol(fpca_res$Lfpca), "fpca_loss"=fpca_loss,
-                 "cp_rank"=cp_res$best_R, "cp_loss"=cp_loss, 
-                 "cp_no_rank"=cp_no_res$best_R, "cp_no_loss"=cp_no_loss,
-                 "mfpca_rank"=ncol(mfpca_res$Lmfpca), "mfpca_loss"=mfpca_loss)
+  ## MFPCA-2
+  mfpca2_res <- mfpca_run(Mmiss, M_seq=c(2))
   
+  mfpca2_loss <- loss(tnsr = mfpca2_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-3
+  mfpca3_res <- mfpca_run(Mmiss, M_seq=c(3))
+  
+  mfpca3_loss <- loss(tnsr = mfpca3_res$est, true_tnsr=Msmooth@data)
+  
+  ## MFPCA-6
+  mfpca6_res <- mfpca_run(Mmiss, M_seq=c(6))
+  
+  mfpca6_loss <- loss(tnsr = mfpca6_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness, no orthogonality 
+  pf_smooth_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("smooth", "uncons", "uncons"))
+  
+  pf_smooth_loss <- loss(tnsr = pf_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness, no orthogonality 
+  pf2_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("smooth", "uncons", "uncons"))
+  
+  pf2_smooth_loss <- loss(tnsr = pf2_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness, no orthogonality 
+  pf3_smooth_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("smooth", "uncons", "uncons"))
+  
+  pf3_smooth_loss <- loss(tnsr = pf3_smooth_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-flexible with imputation and smoothness and orthogonality 
+  pf_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf_ortsmo_loss <- loss(tnsr = pf_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-2 with imputation and smoothness and orthogonality
+  pf2_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf2_ortsmo_loss <- loss(tnsr = pf2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## PARAFAC2-3 with imputation and smoothness and orthogonality
+  pf3_ortsmo_res <- parafac2_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  pf3_ortsmo_loss <- loss(tnsr = pf3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=seq(2,6,by=1), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp_ortsmo_loss <- loss(tnsr = ecp_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP-2 with imputation and smoothness and orthogonality
+  ecp2_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(2), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp2_ortsmo_loss <- loss(tnsr = ecp2_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  ## SCA-ECP with imputation and smoothness and orthogonality
+  ecp3_ortsmo_res <- sca_ecp_run(Mmiss@data, R_seq=c(3), const=c("ortsmo", "uncons", "uncons"))
+  
+  ecp3_ortsmo_loss <- loss(tnsr = ecp3_ortsmo_res$est, true_tnsr=Msmooth@data)
+  
+  output <- list("oracle_rank"=oracle_opt$opt_para[1],"oracle_r2"=oracle_opt$opt_para[2], "oracle_loss"=oracle_loss,
+                 "kcv_rank"=kcv_opt$opt_para[1],"kcv_r2"=kcv_opt$opt_para[2], "kcv_loss"=kcv_loss, 
+                 "fpca_cf_rank"=fpca_cf_res$min_col, "fpca_cf_loss"=fpca_cf_loss, "fpca_ct_rank"=fpca_ct_res$min_col, "fpca_ct_loss"=fpca_ct_loss,
+                 "cp_ortsmo_rank"=cp_ortsmo_res$best_R, "cp_ortsmo_loss"=cp_ortsmo_loss, 
+                 "cp2_ortsmo_loss"=cp2_ortsmo_loss,"cp3_ortsmo_loss"=cp3_ortsmo_loss, "cp6_ortsmo_loss"=cp6_ortsmo_loss,
+                 "cp_smooth_rank"=cp_smooth_res$best_R, "cp_smooth_loss"=cp_smooth_loss, 
+                 "cp2_smooth_loss"=cp2_smooth_loss,"cp3_smooth_loss"=cp3_smooth_loss, "cp6_smooth_loss"=cp6_smooth_loss,
+                 "pf_smooth_loss"=pf_smooth_loss, "pf_smooth_rank"=pf_smooth_res$best_R,
+                 "pf2_smooth_loss"=pf2_smooth_loss, "pf3_smooth_loss"=pf3_smooth_loss,
+                 "pf_ortsmo_loss"=pf_ortsmo_loss, "pf_ortsmo_rank"=pf_ortsmo_res$best_R,
+                 "pf2_ortsmo_loss"=pf2_ortsmo_loss, "pf3_ortsmo_loss"=pf3_ortsmo_loss,
+                 "ecp_ortsmo_loss"=ecp_ortsmo_loss, "ecp_ortsmo_rank"=ecp_ortsmo_res$best_R,
+                 "ecp2_ortsmo_loss"=ecp2_ortsmo_loss, "ecp3_ortsmo_loss"=ecp3_ortsmo_loss,
+                 "mfpca_rank"=mfpca_res$best_M, "mfpca_true_rank"=mfpca_res$true_M, "mfpca_loss"=mfpca_loss, 
+                 "mfpca2_loss"=mfpca2_loss, "mfpca2_true_rank"=mfpca2_res$true_M,
+                 "mfpca3_loss"=mfpca3_loss, "mfpca3_true_rank"=mfpca3_res$true_M,
+                 "mfpca6_loss"=mfpca6_loss, "mfpca6_true_rank"=mfpca6_res$true_M)
   output
 }
 
-save(full_noise2, file="./full_new_v2/full_noise2.Rda")
+save(full_noise2, file="./full_new/full_noise2.Rda")
 
 stopCluster(cl)
+
 
