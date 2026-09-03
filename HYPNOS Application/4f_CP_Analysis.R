@@ -1,128 +1,164 @@
+library(multiway)
+library(ggplot2)
+
 load("./missing_normalized_3.Rda")
+X <- missing_normalized_3@data
+X[is.nan(X)] <- NA
 
-missing_normalized_3@data[is.nan(missing_normalized_3@data)] <- NA
-
-## CP3 with orthogonality and smoothness
-plots <- list()
-for (i in 1:10){
-  res <- multiway::parafac(X=missing_normalized_3@data, nfac=c(3), const=c("ortsmo", "uncons", "uncons"), output="best")
-  
-  res_rescaled <- multiway::rescale(res, mode = "A", newscale = 1/sqrt(nrow(res$A)), absorb = "C")
-  
-  dataL = data.frame(loading = c(res_rescaled$A[, 1], res_rescaled$A[, 2], res_rescaled$A[, 3]),
-                     component = c(rep("1st", 24), rep("2nd", 24), rep("3rd", 24)),
-                     hour = rep(12:35, 3))
-  
-  pL = dataL %>%
-    ggplot(aes(x = hour, y = loading)) + geom_line(alpha = 0.5) + geom_point() + geom_hline(yintercept = 0, color = "red") +
-    scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
-    xlab("Hour of the day") + 
-    facet_grid(~ component) + 
-    ylab("Coefficient") +
-    theme(text = element_text(size = 12)) 
-  print(pL)
-  
-  plots[[i]] <- pL
+nrm <- function(M){                     
+  s <- sqrt(colSums(M^2)); s[s < 1e-12] <- 1
+  sweep(M, 2, s, "/")
 }
 
-## Align plots in a 5*2 grid
-library(gridExtra)
-combined <- grid.arrange(grobs = plots, ncol = 2, nrow = 5)
-combined
-
-# ggsave(plot=combined, filename="CP3ortsmo_L_10runs.pdf", dpi=600, width=12, height=10)
-
-## CP3 with smoothness
-plots <- list()
-for (i in 1:10){
-  res <- multiway::parafac(X=missing_normalized_3@data, nfac=c(3), const=c("smooth", "uncons", "uncons"), output="best")
-  
-  res_rescaled <- multiway::rescale(res, mode = "A", newscale = 1/sqrt(nrow(res$A)), absorb = "C")
-  
-  Q <- qr.Q(qr(res_rescaled$A))
-  
-  dataL = data.frame(loading = c(Q[, 1], Q[, 2], Q[, 3]),
-                     component = c(rep("1st", 24), rep("2nd", 24), rep("3rd", 24)),
-                     hour = rep(12:35, 3))
-  
-  pL = dataL %>%
-    ggplot(aes(x = hour, y = loading)) + geom_line(alpha = 0.5) + geom_point() + geom_hline(yintercept = 0, color = "red") +
-    scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
-    xlab("Hour of the day") + 
-    facet_grid(~ component) + 
-    ylab("Coefficient") +
-    theme(text = element_text(size = 12)) 
-  print(pL)
-  
-  plots[[i]] <- pL
+match_perm <- function(A, Ref){
+  M <- abs(crossprod(nrm(Ref), nrm(A)))
+  perm  <- integer(ncol(Ref))
+  avail <- seq_len(ncol(A))
+  for (j in seq_len(ncol(Ref))) {
+    k <- avail[which.max(M[j, avail])]
+    perm[j] <- k
+    avail <- setdiff(avail, k)
+  }
+  perm
 }
 
-## Align plots in a 5*2 grid
-library(gridExtra)
-combined <- grid.arrange(grobs = plots, ncol = 2, nrow = 5)
-combined
-
-#ggsave(plot=combined, filename="CP3smooth_L_10runs.pdf", dpi=600, width=12, height=10)
-
-## CP6 with orthogonality and smoothness
-plots <- list()
-for (i in 1:10){
-  res <- multiway::parafac(X=missing_normalized_3@data, nfac=c(6), const=c("ortsmo", "uncons", "uncons"), output="best")
-  
-  res_rescaled <- multiway::rescale(res, mode = "A", newscale = 1/sqrt(nrow(res$A)), absorb = "C")
-  
-  dataL = data.frame(loading = c(res_rescaled$A[, 1], res_rescaled$A[, 2], res_rescaled$A[, 3], res_rescaled$A[, 4], res_rescaled$A[, 5], res_rescaled$A[,6]),
-                     component = c(rep("1st", 24), rep("2nd", 24), rep("3rd", 24), rep("4th", 24), rep("5th", 24), rep("6th", 24)),
-                     hour = rep(12:35, 6))
-  
-  pL = dataL %>%
-    ggplot(aes(x = hour, y = loading)) + geom_line(alpha = 0.5) + geom_point() + geom_hline(yintercept = 0, color = "red") +
-    scale_x_continuous(breaks = c(12,  18, 24, 30,  36), labels = c(12,  18,  0,  6, 12)) +
-    xlab("Hour of the day") + 
-    facet_grid(~ component) + 
-    ylab("Coefficient") +
-    theme(text = element_text(size = 12)) 
-  print(pL)
-  
-  plots[[i]] <- pL
+align_to_ref <- function(A, Ref){
+  perm   <- match_perm(A, Ref)
+  A_perm <- nrm(A)[, perm, drop = FALSE]
+  sgn <- sign(diag(crossprod(A_perm, nrm(Ref))))
+  sgn[sgn == 0] <- 1
+  sweep(A_perm, 2, sgn, "*")
 }
 
-## Align plots in a 5*2 grid
-library(gridExtra)
-combined <- grid.arrange(grobs = plots, ncol = 2, nrow = 5)
-combined
 
-#ggsave(plot=combined, filename="CP6ortsmo_L_10runs.pdf", dpi=600, width=15, height=10)
+# R = 3, ortsmo
+R <- 3
+nrun <- 10
+CONST <- c("ortsmo", "uncons", "uncons")
+set.seed(2)
+res <- lapply(1:nrun, function(i) parafac(X, nfac = R, const = CONST, output = "best"))
 
-## CP6 with smoothness
-plots <- list()
-for (i in 1:10){
-  res <- multiway::parafac(X=missing_normalized_3@data, nfac=c(6), const=c("smooth", "uncons", "uncons"), output="best")
-  
-  res_rescaled <- multiway::rescale(res, mode = "A", newscale = 1/sqrt(nrow(res$A)), absorb = "C")
-  
-  Q <- qr.Q(qr(res_rescaled$A))
-  
-  dataL = data.frame(loading = c(Q[, 1], Q[, 2], Q[, 3], Q[,4], Q[,5], Q[,6]),
-                     component = c(rep("1st", 24), rep("2nd", 24), rep("3rd", 24), rep("4th", 24), rep("5th", 24), rep("6th", 24)),
-                     hour = rep(12:35, 6))
-  
-  pL = dataL %>%
-    ggplot(aes(x = hour, y = loading)) + geom_line(alpha = 0.5) + geom_point() + geom_hline(yintercept = 0, color = "red") +
-    scale_x_continuous(breaks = c(12, 15, 18, 21, 24, 27, 30, 33, 36), labels = c(12, 15, 18, 21, 0, 3, 6, 9, 12)) +
-    xlab("Hour of the day") + 
-    facet_grid(~ component) + 
-    ylab("Coefficient") +
-    theme(text = element_text(size = 12)) 
-  print(pL)
-  
-  plots[[i]] <- pL
-}
+Ref  <- res[[1]]$A
+Aaligned  <- lapply(res, function(f) align_to_ref(f$A, Ref))
 
-## Align plots in a 5*2 grid
-library(gridExtra)
-combined <- grid.arrange(grobs = plots, ncol = 2, nrow = 5)
-combined
+R <- ncol(Ref)
+nrun <- length(Aaligned)
 
-#ggsave(plot=combined, filename="CP6smooth_L_10runs.pdf", dpi=600, width=15, height=10)
+df <- do.call(rbind, lapply(seq_len(nrun), function(i) data.frame(
+  hour      = rep(12:35, R),
+  loading   = as.vector(Aaligned[[i]]),
+  component = rep(paste0("Component ", 1:R), each = 24),
+  run       = factor(i)
+)))
+
+p <- ggplot(df, aes(hour, loading, group = run, colour = run)) +
+  geom_line(alpha = .85) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_grid(~ component) +
+  scale_x_continuous(breaks = seq(12, 36, 6), labels = c(12, 18, 0, 6, 12)) +
+  labs(x = "Hour of the day", y = "Coefficient") +
+  theme_bw() + theme(text = element_text(size = 12))
+
+print(p)
+
+#ggsave("CP3_ortsmo_aligned_10runs.pdf", p, width = 9, height = 3)
+
+# R = 3, smooth
+R <- 3
+nrun <- 10
+CONST <- c("smooth", "uncons", "uncons")
+set.seed(1)
+res <- lapply(1:nrun, function(i) parafac(X, nfac = R, const = CONST, output = "best"))
+
+Ref  <- res[[1]]$A
+Aaligned  <- lapply(res, function(f) align_to_ref(f$A, Ref))
+
+R <- ncol(Ref)
+nrun <- length(Aaligned)
+
+df <- do.call(rbind, lapply(seq_len(nrun), function(i) data.frame(
+  hour      = rep(12:35, R),
+  loading   = as.vector(Aaligned[[i]]),
+  component = rep(paste0("Component ", 1:R), each = 24),
+  run       = factor(i)
+)))
+
+p <- ggplot(df, aes(hour, loading, group = run, colour = run)) +
+  geom_line(alpha = .85) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_grid(~ component) +
+  scale_x_continuous(breaks = seq(12, 36, 6), labels = c(12, 18, 0, 6, 12)) +
+  labs(x = "Hour of the day", y = "Coefficient") +
+  theme_bw() + theme(text = element_text(size = 12))
+
+print(p)
+
+##ggsave("CP3_smooth_aligned_10runs.pdf", p, width =9 , height = 3)
+
+# R = 6, ortsmo
+
+R <- 6
+nrun <- 10
+CONST <- c("ortsmo", "uncons", "uncons")
+set.seed(3)
+res <- lapply(1:nrun, function(i) parafac(X, nfac = R, const = CONST, output = "best"))
+
+Ref  <- res[[1]]$A
+Aaligned  <- lapply(res, function(f) align_to_ref(f$A, Ref))
+
+R <- ncol(Ref)
+nrun <- length(Aaligned)
+
+df <- do.call(rbind, lapply(seq_len(nrun), function(i) data.frame(
+  hour      = rep(12:35, R),
+  loading   = as.vector(Aaligned[[i]]),
+  component = rep(paste0("Component ", 1:R), each = 24),
+  run       = factor(i)
+)))
+
+p <- ggplot(df, aes(hour, loading, group = run, colour = run)) +
+  geom_line(alpha = .85) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_grid(~ component) +
+  scale_x_continuous(breaks = seq(12, 36, 6), labels = c(12, 18, 0, 6, 12)) +
+  labs(x = "Hour of the day", y = "Coefficient") +
+  theme_bw() + theme(text = element_text(size = 12))
+
+print(p)
+
+#ggsave("CP6_ortsmo_aligned_10runs.pdf", p, width = 9, height = 3)
+
+# R = 6, smooth
+R <- 6
+nrun <- 10
+CONST <- c("smooth", "uncons", "uncons")
+set.seed(4)
+res <- lapply(1:nrun, function(i) parafac(X, nfac = R, const = CONST, output = "best"))
+
+Ref  <- res[[1]]$A
+Aaligned  <- lapply(res, function(f) align_to_ref(f$A, Ref))
+
+R <- ncol(Ref)
+nrun <- length(Aaligned)
+
+df <- do.call(rbind, lapply(seq_len(nrun), function(i) data.frame(
+  hour      = rep(12:35, R),
+  loading   = as.vector(Aaligned[[i]]),
+  component = rep(paste0("Component ", 1:R), each = 24),
+  run       = factor(i)
+)))
+
+p <- ggplot(df, aes(hour, loading, group = run, colour = run)) +
+  geom_line(alpha = .85) +
+  geom_hline(yintercept = 0, colour = "grey40") +
+  facet_grid(~ component) +
+  scale_x_continuous(breaks = seq(12, 36, 6), labels = c(12, 18, 0, 6, 12)) +
+  labs(x = "Hour of the day", y = "Coefficient") +
+  theme_bw() + theme(text = element_text(size = 12))
+
+print(p)
+
+#ggsave("CP6_smooth_aligned_10runs.pdf", p, width = 9, height = 3)
+
+
 

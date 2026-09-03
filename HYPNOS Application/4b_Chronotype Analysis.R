@@ -98,4 +98,13 @@ ggplot() +
 
 # ggsave("g31_update.pdf", dpi=600, width=5, height=5)
 
+# Spearman correlation:
+# tests whether sleep midpoint changes monotonically with g31
+spearman_mid <- cor.test(
+  wake_summary$g31,
+  wake_summary$mean_hour,
+  method = "spearman",
+  exact = FALSE
+)
 
+spearman_mid

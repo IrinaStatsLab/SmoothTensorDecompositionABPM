@@ -18,6 +18,13 @@ L_tilde <- tilde$L_tilde
 R_tilde <- tilde$R_tilde
 G_tilde <- tilde$G_tilde
 
+# Sign Flip
+S <- diag(c(-1, -1), nrow = 2)   
+R_tilde <- R_tilde %*% S
+for (i in seq_len(dim(G_tilde)[3])) {
+  G_tilde[,,i] <- G_tilde[,,i] %*% S
+}
+
 G_mat <- cbind(G_tilde[1,1,], G_tilde[1,2,], 
                G_tilde[2,1,], G_tilde[2,2,],
                G_tilde[3,1,], G_tilde[3,2,])

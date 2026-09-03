@@ -244,3 +244,70 @@ for (i in c(2:5, 0)){
                                            method="bonferroni")))
 }
 
+## Forest Plot
+df <- data.frame(
+  Variable = c("Age", "Sex: Female", "Race: Others", "BMI", "log(ODI4)"),
+  Model = rep(c("g11", "g12"), each = 5),
+  Beta = c(-0.057, -0.275, 1.948, 0.106, 1.615,
+           -0.110, 1.383, -0.505, -0.124, 0.060),
+  CI_lower = c(-0.120, -1.486, 0.784, -0.013, 0.652,
+               -0.164, 0.345, -1.503, -0.227, -0.767),
+  CI_upper = c(0.006, 0.936, 3.111, 0.226, 2.578,
+               -0.056, 2.423, 0.493, -0.021, 0.886),
+  Sig = c("","","**","","**",
+          "***","**","","*","")
+)
+
+df <- df %>% 
+  mutate(Sig_position = ifelse(Beta > 0, CI_upper + 0.12, CI_lower - 0.12))
+
+ggplot(df, aes(x = Variable, y = Beta, color = Model)) +
+  geom_point(position = position_dodge(width = 0.6), size = 3) +
+  geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper),
+                position = position_dodge(width = 0.6), width = 0.2) +
+  geom_text(
+    data = subset(df, Beta > 0 & Sig != ""),
+    aes(y = CI_upper, label = Sig),
+    nudge_y = 0.08,
+    hjust = 0,
+    color = "black",
+    size = 4.5,
+    fontface = "bold"
+  ) +
+  geom_text(
+    data = subset(df, Beta < 0 & Sig != ""),
+    aes(y = CI_lower, label = Sig),
+    nudge_y = -0.08,
+    hjust = 1,
+    color = "black",
+    size = 4.5,
+    fontface = "bold"
+  ) +
+  geom_hline(yintercept = 0, linetype = "dashed") +
+  scale_x_discrete(position = "bottom") +
+  scale_y_continuous(
+    expand = expansion(mult = c(0.15, 0.25))
+  ) +
+  labs(x = "", y = "Coefficient Estimate") +
+  facet_wrap(~ Model, nrow = 1) +  # Horizontal layout
+  #theme_minimal() +
+  theme(
+    axis.text.x = element_text(size = 12),
+    axis.text.y = element_text(size = 12),
+    axis.title.y = element_text(size = 14),
+    axis.title.x = element_text(size = 14),
+    legend.position = "none",
+    
+    panel.background = element_rect(fill = "white", color = NA),
+    panel.border = element_rect(color = "grey70", fill = NA, linewidth = 0.8),
+    
+    panel.grid.minor = element_blank(),
+    panel.grid.major.y = element_blank(),
+    panel.grid.major.x = element_line(color = "grey85", linewidth = 0.5),
+    
+    strip.text = element_text(size = 14)
+  ) + coord_flip(clip="off")
+
+#ggsave("forest_plot_updated.pdf", width = 12, height = 3)
+
+

@@ -20,9 +20,21 @@ uniExpansions <- list(list(type = "uFPCA"),
                       list(type = "uFPCA"),
                       list(type = "uFPCA"))
 
+start <- Sys.time()
+
 MFPCAres3 <- MFPCA(mfd_all, M = 3, uniExpansions = uniExpansions, fit=TRUE)
 
-plot(MFPCAres3)
+end <- Sys.time()
+
+end-start
+
+#plot(MFPCAres3)
+
+for (m in 1:3) {
+  #pdf(sprintf("./MFPCA_ABPM_PC%d_combined.pdf", m), width = 10, height = 3)
+  plot(MFPCAres3, combined=TRUE, plotPCs = m)  
+  #dev.off()
+}
 
 MFPCAeigenfunc_to_df <- function(MFPCAeigenfunc, var_names){
   
@@ -69,5 +81,5 @@ ggplot(df_for_plot, aes(x = argvals, y = Value, color = as.factor(Index))) +
        color = "Principal Components (PCs)") +
   guides(color = guide_legend(nrow = 1))
 
-#ggsave(filename="MFPCA_PCs.pdf", dpi=600, width=8, height=3)
+#ggsave(filename="./MFPCA_PCs_updated.pdf", dpi=600, width=8, height=3)
 

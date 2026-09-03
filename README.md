@@ -41,7 +41,7 @@ In `Study 1-Case 1-Fixed ranks` and `Study 1-Case 2-Flexible ranks` folders, the
 - `p`: sample size
 - `result_analysis`: the code for generating the figures related to simulation studies.
 
-In the `Study 2` folder, `no_ar1_flexible.R` and `ar1_flexible.R` are the scripts for running the simulation study with no AR(1) correlation and with AR(1) correlation, respectively.
+In the `Study 3` folder, `no_ar1_flexible.R` and `ar1_flexible.R` are the scripts for running the simulation study with no AR(1) correlation and with AR(1) correlation, respectively.
 `no_ar1_analysis.R` and `ar1_analysis.R` are the scripts for generating the related figures.
 
 ## Synthetic Example
