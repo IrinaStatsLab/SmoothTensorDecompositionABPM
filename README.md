@@ -20,6 +20,8 @@ This folder includes code for reproducing the results in Section 4 of the paper.
 - `4e_Regression Interpretation_Profile.R`: estimation of DBP, SBP, and HR profiles for different groups of subjects
 - `4f_CP_Analysis.R`: instability of CP decomposition in ABPM data
 - `4g_MFPCA_Analysis.R`: MFPCA analysis for ABPM data 
+- `4h_PARAFAC2_Analysis.R`: PARAFAC2 analysis for ABPM data
+- `Release_3rdmode.R`: Release the third-mode factor matrix from being identity
 
 ## Multi-site Air Quality Application
 
@@ -33,6 +35,8 @@ This folder includes code for reproducing the results in Section 3 of the paper.
 - `cp_run.R`: script for running CP decomposition for all the simulation settings
 - `fpca_run.R`: script for running univariate FPCA for all the simulation settings
 - `mfpca_run.R`: script for running MFPCA for all the simulation settings
+- `parafac2_run.R`: script for running PARAFAC2 (SCA-PF2) and SCA-IND for all the simulation settings
+- `sca_ecp_run.R`: script for running SCA-ECP for all the simulation settings
 
 In `Study 1-Case 1-Fixed ranks` and `Study 1-Case 2-Flexible ranks` folders, the following abbreviations were used to name the files:
 - `missing_rate`: random missingness
@@ -40,6 +44,9 @@ In `Study 1-Case 1-Fixed ranks` and `Study 1-Case 2-Flexible ranks` folders, the
 - `noise_level`: noise level
 - `p`: sample size
 - `result_analysis`: the code for generating the figures related to simulation studies.
+
+In the `Study 2` folder, `rank_misspecification_sim.R` and `rank_misspecification_sim_samelambda.R` are the scripts for running the simulation study with different or same $\lambda$ values for different fitted ranks, respectively.
+`calc_EV.R` and `rank_truncation.R` include helper functions. `rank_misspecification_analysis.R` is the script for generating the related figures.
 
 In the `Study 3` folder, `no_ar1_flexible.R` and `ar1_flexible.R` are the scripts for running the simulation study with no AR(1) correlation and with AR(1) correlation, respectively.
 `no_ar1_analysis.R` and `ar1_analysis.R` are the scripts for generating the related figures.
