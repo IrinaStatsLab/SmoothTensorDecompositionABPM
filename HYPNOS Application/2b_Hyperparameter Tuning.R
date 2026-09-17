@@ -48,16 +48,16 @@ for (i in 1:6){
   for (j in 1:207){
     comp[ , , j] <- matrix(L_tilde[, 1:i], ncol=i) %*% matrix(G_tilde[1:i, , j], nrow=i) %*% t(R_tilde)
   }
-  cum_var_L[i] <- sum(comp[nmiss_idx]^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
+  cum_var_L[i] <- 1 - sum((missing_normalized_3@data[nmiss_idx]-comp[nmiss_idx])^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
 }
 
-cum_var_L # 0.4582307 0.5942680 0.6422763 0.6503056 0.6577276 0.6584467
+cum_var_L # 0.4508818 0.6144494 0.6723581 0.6970985 0.7201655 0.7276182
 
 # Separate explained variability for different L ranks
 cum_var_L0 <- c(0, cum_var_L[1:5])
 sep_var_L <- cum_var_L - cum_var_L0
 
-sep_var_L # 0.4582306599 0.1360373599 0.0480082338 0.0080293524 0.0074219888 0.0007191089
+sep_var_L # 0.45088178 0.16356766 0.05790869 0.02474033 0.02306705 0.00745271
 
 # Cumulative explained variability when r2 increases
 cum_var_R <- rep(NA, 3)
@@ -66,16 +66,17 @@ for (i in 1:3){
   for (j in 1:207){
     comp[ , , j] <- L_tilde %*% matrix(G_tilde[,1:i, j], ncol=i) %*% matrix(t(R_tilde[, 1:i]), nrow=i)
   }
-  cum_var_R[i] <- sum(comp[nmiss_idx]^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
+  #cum_var_R[i] <- sum(comp[nmiss_idx]^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
+  cum_var_R[i] <- 1 - sum((comp[nmiss_idx]-missing_normalized_3@data[nmiss_idx])^2)/sum(missing_normalized_3@data[nmiss_idx]^2)
 }
 
-cum_var_R # 0.3786139 0.5849324 0.6584467
+cum_var_R # 0.4275989 0.6483961 0.7276182
 
 # Separate explained variability for different R ranks
 cum_var_R0 <- c(0, cum_var_R[1:2])
 sep_var_R <- cum_var_R - cum_var_R0
 
-sep_var_R # 0.37861393 0.20631849 0.07351428
+sep_var_R # 0.42759894 0.22079714 0.07922215
 
 # Plot the explained variability
 var_data_L <- data.frame(
@@ -100,9 +101,9 @@ ggplot(var_data_L, aes(x = component, y = value)) +
         axis.text.y = element_text(size = 14)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1))) 
 
-# ggsave("var_L.pdf", dpi=600, width=6, height=4)
+# ggsave("var_L_upodated.pdf", dpi=600, width=6, height=4)
 
-# The 4th - 6th components explain variability <1%, can be removed
+# The 4th - 6th components explain little variability, can be removed
 
 var_data_R <- data.frame(
   component = factor(seq_along(sep_var_R), levels = seq_along(sep_var_R)), 
@@ -126,7 +127,7 @@ ggplot(var_data_R, aes(x = component, y = value)) +
         axis.text.y = element_text(size = 14)) +
   scale_y_continuous(expand = expansion(mult = c(0, 0.1)))
 
-# ggsave("var_R.pdf", dpi=600, width=6, height=4)
+# ggsave("var_R_updated.pdf", dpi=600, width=6, height=4)
 
 # The 3rd components explain variability can be removed
 
@@ -136,5 +137,6 @@ res_adj <-  mglram(tnsr = missing_normalized_3@data, ranks = c(3, 2), init=0, D 
                    lambda = 4, max_iter = 500, tol = 1e-5, L0 = NULL)
 res_adj$conv
 
-sum(res_adj$est[nmiss_idx]^2)/sum(missing_normalized_3@data[nmiss_idx]^2) # Explained variability of the final model
-# 0.5900238
+1 - sum((missing_normalized_3@data[nmiss_idx] - res_adj$est[nmiss_idx])^2)/sum(missing_normalized_3@data[nmiss_idx]^2) # Explained variability of the final model
+# 0.6059719
+

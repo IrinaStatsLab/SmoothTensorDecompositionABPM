@@ -26,8 +26,8 @@ sca_ecp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")
       
       est_i <- fitted(res_i)
       
-      exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr_array[nmiss_idx])^2)
-      #exp_var[i] <- 1 - sum((tnsr_array[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr_array[nmiss_idx]^2)
+      #exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr_array[nmiss_idx])^2)
+      exp_var[i] <- 1 - sum((tnsr_array[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr_array[nmiss_idx]^2)
       est[[i]] <- est_i
     }
     best_R_idx <- which.max(exp_var)

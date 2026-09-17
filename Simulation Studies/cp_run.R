@@ -51,8 +51,8 @@ cp_run <- function(tnsr_array, R_seq, const=c("ortsmo", "uncons", "uncons")){
       Lcp_i <- res_rescaled_i$A
       
       res_rescaled_list[[i]] = res_rescaled_i
-      exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr_array[nmiss_idx])^2)
-      #exp_var[i] <- 1 - sum((tnsr_array[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr_array[nmiss_idx]^2)
+      #exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr_array[nmiss_idx])^2)
+      exp_var[i] <- 1 - sum((tnsr_array[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr_array[nmiss_idx]^2)
       est[[i]] <- est_i
       Lcp[[i]] <- Lcp_i
     }
