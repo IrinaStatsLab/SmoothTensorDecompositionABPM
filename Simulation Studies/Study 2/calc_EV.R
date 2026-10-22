@@ -1,4 +1,4 @@
-calc_EV_ssesst <- function(M_denom, L_tilde, G_tilde, R_tilde) {
+calc_EV <- function(M_denom, L_tilde, G_tilde, R_tilde) {
   
   r1 <- ncol(L_tilde)
   r2 <- ncol(R_tilde)
