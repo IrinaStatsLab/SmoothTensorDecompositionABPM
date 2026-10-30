@@ -213,14 +213,14 @@ for (i in 1:5){
   for (j in 1:12){
     comp[ , , j] <- matrix(L_tilde[, 1:i], ncol=i) %*% matrix(G_tilde[1:i, , j], nrow=i) %*% t(R_tilde)
   }
-  cum_var_L[i] <- sum(comp^2)/sum(air_tensor_std^2)
+  cum_var_L[i] <- 1-sum((comp-air_tensor_std)^2)/sum(air_tensor_std^2)
 }
 
-cum_var_L # 0.3530622 0.4417132 0.4918228 0.5096191 0.5184378
+cum_var_L # 0.3674287 0.4564585 0.5096157 0.5332524 0.5501262
 
 cum_var_L0 <- c(0, cum_var_L[1:4])
 sep_var_L <- cum_var_L - cum_var_L0
-sep_var_L # 0.353062161 0.088651020 0.050109643 0.017796238 0.008818764
+sep_var_L # 0.36742874 0.08902972 0.05315726 0.02363672 0.01687379
 
 cum_var_R <- rep(NA, 5)
 for (i in 1:5){
@@ -228,15 +228,15 @@ for (i in 1:5){
   for (j in 1:12){
     comp[ , , j] <- L_tilde %*% matrix(G_tilde[,1:i, j], ncol=i) %*% matrix(t(R_tilde[, 1:i]), nrow=i)
   }
-  cum_var_R[i] <- sum(comp^2)/sum(air_tensor_std^2)
+  cum_var_R[i] <- 1-sum((comp-air_tensor_std)^2)/sum(air_tensor_std^2)
 }
 
-cum_var_R # 0.4049534 0.4558021 0.4926196 0.5089911 0.5184378
+cum_var_R # 0.4205171 0.4749145 0.5154215 0.5366266 0.5501262
 
 cum_var_R0 <- c(0, cum_var_R[1:4])
 sep_var_R <- cum_var_R - cum_var_R0
 
-sep_var_R # 0.404953398 0.050848710 0.036817456 0.016371584 0.009446679
+sep_var_R # 0.42051709 0.05439737 0.04050708 0.02120505 0.01349963
 
 var_data_L <- data.frame(
   component = factor(seq_along(sep_var_L), levels = seq_along(sep_var_L)), 
@@ -311,7 +311,7 @@ L_tilde <- tilde$L_tilde
 R_tilde <- tilde$R_tilde
 G_tilde <- tilde$G_tilde
 
-sum(res$est^2)/sum(air_tensor_std^2) #  0.4610038
+1-sum((res$est-air_tensor_std)^2)/sum(air_tensor_std^2) #  0.4956447
 
 month_mids  <- c(15, 46, 74, 105, 135, 166, 196, 227, 258, 288, 319, 349)
 #month_labs  <- c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")

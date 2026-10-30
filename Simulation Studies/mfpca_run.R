@@ -54,8 +54,8 @@ mfpca_run <- function(tnsr, M_seq){
         est_i[,j,] <- t(reconstruction[[j]]@X)
       }
       
-      exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr@data[nmiss_idx])^2)
-      #exp_var[i] <- 1 - sum((tnsr@data[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr@data[nmiss_idx]^2)
+      #exp_var[i] <- sum((est_i[nmiss_idx])^2)/sum((tnsr@data[nmiss_idx])^2)
+      exp_var[i] <- 1 - sum((tnsr@data[nmiss_idx] - est_i[nmiss_idx])^2) /sum(tnsr@data[nmiss_idx]^2)
       est[[i]] <- est_i
       true_M[[i]] <- ncol(MFPCAres$scores)
     }

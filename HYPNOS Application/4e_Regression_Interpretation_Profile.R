@@ -19,7 +19,7 @@ library(kableExtra)
 id_207 <- unique(filtered_abpm_new$ID) # 207 ids
 id_cov <- unique(combined$id) # 204 ids
 match <- match(id_cov, id_207) 
-matched_id <- id_207[match[!is.na(match)]] # which ids are in both data
+matched_id <- id_207[match[!is.na(match)]] # which ids are in both data--191
 
 ## indexes of matached ids in the tensor
 matched_idx <- which(unique(filtered_abpm_new$ID) %in% matched_id)
