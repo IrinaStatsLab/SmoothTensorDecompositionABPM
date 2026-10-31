@@ -12,13 +12,15 @@ This folder includes code for reproducing the results in Section 4 of the paper.
 - `1b_Tensor Generation.R`: organization of original data into a tensor structure
 - `2a_Autocorrelation.R`: check residual autocorrelation in the ABPM data
 - `2b_Hyperparameter Tuning.R`: hyperparameter tuning, including rank reduction for parsimony
-- `3_Algorithm Run.R`: implementation of SmoothHOOI algorithm, with optimal hyperparameter applied
+- `3a_Algorithm Run.R`: implementation of SmoothHOOI algorithm, with optimal hyperparameter applied
+- `3b_bootstrap.R`: bootstrap for uncertainty quantification of the estimated temporal components
 - `4a_Result Visualization.R`: visualization of temporal components and estimated curves
 - `4b_Chronotype Analysis.R`: validation of the interpretation of the third temporal component (plot of g score vs sleep times)
 - `4c_Regression.R`: regression analysis
 - `4d_Regression Interpretation_Effect_size.R`: visualization of effect sizes of all the variables
 - `4e_Regression Interpretation_Profile.R`: estimation of DBP, SBP, and HR profiles for different groups of subjects
-- `4f_CP_Analysis.R`: instability of CP decomposition in ABPM data
+- `4f1_CP_Analysis_default.R`: instability of CP decomposition in ABPM data, shown with model settings as package's default
+- `4f2_CP_Analysis_more_iter.R`: degeneracy of CP decomposition in ABPM data, shown with more iterations
 - `4g_MFPCA_Analysis.R`: MFPCA analysis for ABPM data 
 - `4h_PARAFAC2_Analysis.R`: PARAFAC2 analysis for ABPM data
 - `Release_3rdmode.R`: Release the third-mode factor matrix from being identity
